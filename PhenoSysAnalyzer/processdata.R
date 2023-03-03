@@ -47,8 +47,6 @@ data <- data %>%
 # remove intermediate variables
 rm(subfolders)
 
-
-
 # Create a new column to represent the consecutive Active phases for each animal
 data$ConsecActive <- with(data, ave(Phase, AnimalNum, FUN=function(x) {
   cumsum(c(0, diff(ifelse(x == "Active", 1, 0))) == 1)
@@ -60,8 +58,6 @@ hourly_data <- aggregate(ActivityIndex ~ AnimalNum + ConsecActive + Group + Phas
 
 # Aggregate data by AnimalNum, ConsecActive, and Group for each night
 nightly_data <- aggregate(ActivityIndex ~ AnimalNum + ConsecActive + Group + Phase + RecentChange + PriorActive, data = data, FUN = mean)
-
-
 
 ################################################################################
 ## Line plot of Active and Inactive Phase based on Group
@@ -117,12 +113,10 @@ for (phase in phases) {
   
   # Add the plot to the list of plots
   plots[[phase]] <- plot
-  
 }
 
 # Arrange the plots using grid.arrange
 grid.arrange(grobs = plots, nrow = 2)
-
 
 ################################################################################
 ## Compare Means between Groups during 2 hours preceding the Active Phase
