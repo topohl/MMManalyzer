@@ -12,11 +12,8 @@ library(lubridate)   # load lubridate package for date and time functions
 library(readr)        # load readr package for reading csv files
 library(openxlsx)     # load openxlsx package for writing xlsx files
 
-# set the working directory to the parent directory containing the subfolders
+# set the working directory to the parent directory containing the subfolders an get a list of the B1 and B2 subfolders in the directory
 setwd("S:/Lab_Member/Tobi/Experiments/Exp9_Social-Stress/Raw Data/Behavior/RFID/BatchAnalysis")
-
-
-# get a list of the B1 and B2 subfolders in the directory
 subfolders <- c("B1", "B2")
 
 # function to read and process a single CSV file, it processes all .csv files in the selected destination folder
@@ -28,7 +25,6 @@ process_file <- function(file_path) {
     mutate(Change = str_extract(filename, "CC\\d")) %>%   # extract the Change number from the filename
     select(-filename) # remove the filename column
 }
-
 
 # function to process and save as XLSX file
 process_and_save_xlsx <- function(file_path) {
@@ -44,22 +40,17 @@ files <- list.files(path = "S:/Lab_Member/Tobi/Experiments/Exp9_Social-Stress/Ra
 purrr::walk(files, process_and_save_xlsx)
 
 # read all CSV files in the B1 and B2 subfolders, convert them to xlsx, and combine them into a single data frame
-data <- map_dfr(subfolders, ~ {
+data <- map_dfr(subfolders, ~{
   # get a list of subfolders in the current B1 or B2 folder
   subfolders <- list.dirs(paste0(".", "/", .x), recursive = FALSE)
   
-  # get files matching the pattern for Batch 2
-  batch2_data <- map(subfolders, ~list.files(path = .x, pattern = "E9_SIS_B2_CC\\d_ActivityIndex.csv", full.names = TRUE)) %>% 
-    flatten() %>% 
-    map(process_file) %>% 
+  # get files matching the pattern for Batch 1 and Batch 2
+  all_files <- map(subfolders, ~list.files(path = .x, pattern = c("E9_SIS_B\\d+_CC\\d_ActivityIndex.csv"), full.names = TRUE)) %>% 
+    flatten()
+  
+  # process all files and combine into a single data frame
+  all_data <- map(all_files, ~process_file(.x)) %>% 
     bind_rows()
   
-  # get files matching the pattern for Batch 1
-  batch1_data <- map(subfolders, ~list.files(path = .x, pattern = "E9_SIS_B1_CC\\d_ActivityIndex.csv", full.names = TRUE)) %>% 
-    flatten() %>% 
-    map(process_file) %>% 
-    bind_rows()
-  
-  # combine the data frames for both batches
-  bind_rows(batch2_data, batch1_data)
+  all_data
 })
