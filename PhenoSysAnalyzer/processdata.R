@@ -8,8 +8,8 @@ library(dplyr)       # load dplyr package for data manipulation functions
 library(purrr)       # load purrr package for functional programming
 library(stringr)     # load stringr package for string manipulation
 library(lubridate)   # load lubridate package for date and time functions
-library(tidyr)
-library(forcats)
+library(tidyr)       # load tidyr package for data reshaping
+library(forcats)     # load forcats package for factor manipulation
 
 # set the working directory to the parent directory containing the subfolders
 setwd("S:/Lab_Member/Tobi/Experiments/Exp9_Social-Stress/Raw Data/Behavior/RFID/BatchAnalysis")
@@ -23,9 +23,9 @@ data <- separate(data, Animal, c("AnimalNum", "Cage"), sep = "_", remove = FALSE
 # convert the DateTime column to a datetime format
 data$DateTime <- as.POSIXct(data$DateTime, format = "%d.%m.%Y %H:%M")
 
+# rename ActivyIndex to ActivityIndex
 data <- data %>%
   rename(ActivityIndex = ActivyIndex)
-
 
 # create a Phase column based on the time of day
 data <- data %>%
@@ -41,6 +41,7 @@ data <- data %>%
   ),
   Hour = floor(difftime(DateTime, first(DateTime), units = "hours")),
   RecentChange = Hour <= 2,
+  # insert control animal IDs as defined in the provided csv sheets
   Group = ifelse(AnimalNum %in% c("OR126", "OR127", "OR128", "OR129", "OQ761", "OQ763", "OQ765", "OQ760"), "CON", "SIS")
   )
 
@@ -200,8 +201,4 @@ p_means <- p_means + geom_signif(comparisons = list(c("CON", "SIS")),
 
 # Arrange two plots side by side
 plot_grid(p_indiv, p_means, ncol = 2, align = "v", labels = c("A", "B"))
-
-
-
-
 
