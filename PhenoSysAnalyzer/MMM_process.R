@@ -29,24 +29,29 @@ data <- data %>%
 
 # create a Phase column based on the time of day
 data <- data %>%
-  mutate(Phase = ifelse(
-    format(DateTime, "%H:%M") >= "18:30" | format(DateTime, "%H:%M") < "06:30",
-    "Active",
-    "Inactive"
-  ),
-  PriorActive = ifelse(
-    format(DateTime, "%H:%M") >= "16:30" & format(DateTime, "%H:%M") <= "18:30",
-    "TRUE",
-    "FALSE"
-  ),
-  Hour = floor(difftime(DateTime, first(DateTime), units = "hours")),
-  RecentChange = Hour <= 2,
-  # insert control animal IDs as defined in the provided csv sheets
-  Group = ifelse(AnimalNum %in% c("OR126", "OR127", "OR128", "OR129", "OQ761", "OQ763", "OQ765", "OQ760"), "CON", "SIS")
-  )
-
-# remove intermediate variables
-rm(subfolders)
+  mutate(
+    Phase = ifelse(
+      format(DateTime, "%H:%M") >= "18:30" | format(DateTime, "%H:%M") < "06:30",
+      "Active",
+      "Inactive"
+    ),
+    PriorActive = ifelse(
+      format(DateTime, "%H:%M") >= "16:30" & format(DateTime, "%H:%M") <= "18:30",
+      "TRUE",
+      "FALSE"
+    ),
+    Batch = as.factor(Batch), # convert Batch to a factor variable
+    
+    # Define Control animals
+    Group = ifelse(
+      AnimalNum %in% c("OR126", "OR127", "OR128", "OR129", "OQ761", "OQ763", "OQ765", "OQ760"),
+      "CON",
+      "SIS"
+    )
+  ) %>%
+  group_by(Batch) %>%
+  mutate(Hour = difftime(DateTime, first(DateTime), units = "hours")) %>%
+  ungroup()
 
 # Create a new column to represent the consecutive Active phases for each animal
 data$ConsecActive <- with(data, ave(Phase, AnimalNum, FUN=function(x) {
@@ -54,9 +59,51 @@ data$ConsecActive <- with(data, ave(Phase, AnimalNum, FUN=function(x) {
 }))
 data$ConsecActive <- as.numeric(data$ConsecActive)
 
-# Aggregate data by AnimalNum, ConsecActive, and Group
-hourly_data <- aggregate(ActivityIndex ~ AnimalNum + ConsecActive + Group + Phase + Hour + RecentChange + PriorActive, data = data, FUN = mean)
+#remove last two active and inactive phases of CC4 due to grid within cage
+data <- data %>%
+  filter(!(Change == "CC4" & Phase %in% c("Active", "Inactive") & ConsecActive >= 15))
 
-# Aggregate data by AnimalNum, ConsecActive, and Group for each night
-nightly_data <- aggregate(ActivityIndex ~ AnimalNum + ConsecActive + Group + Phase + RecentChange + PriorActive, data = data, FUN = mean)
+# exclude animals with non-complete datasets
+excluded_animals <- c('OQ750', 'OQ751', 'OQ752', 'OQ753', '0001', '0002')
+data <- data[!data$AnimalNum %in% excluded_animals,]
 
+#remove last two active and inactive phases of CC4 due to grid within cage
+data <- data %>%
+  filter(!(AnimalNum == "CC4" & Phase %in% c("Active", "Inactive") & ConsecActive >= 15))
+
+#remove last two active and inactive phases of CC4 due to grid within cage
+data <- data %>%
+  filter(!(AnimalNum == "CC4" & Phase %in% c("Active", "Inactive") & ConsecActive >= 15))
+
+# Remove the first and last inactive phase for each Change and Batch
+data_filtered <- data %>%
+  group_by(Batch, Change, AnimalNum) %>% 
+  mutate(ActivePeriods = ifelse(Phase == "Active", 1, 0),
+         InactivePeriods = ifelse(Phase == "Inactive", 1, 0),
+         TotalPeriods = sum(ActivePeriods, InactivePeriods),
+         ConsecActive = ifelse(Phase == "Active", cumsum(c(1, diff(ifelse(Phase == "Inactive", 0, 1))) == 1), 0),
+         ConsecInactive = ifelse(Phase == "Inactive", cumsum(c(1, diff(ifelse(Phase == "Active", 0, 1))) == 1), 0)) %>% 
+  filter(!(ConsecInactive == max(ConsecInactive[Phase == "Inactive"]) & Phase == "Inactive" |
+             ConsecInactive == min(ConsecInactive[Phase == "Inactive"]) & Phase == "Inactive")) %>% 
+  ungroup()
+
+# Round datetime down to the nearest half-hour
+data_filtered$DateTime30Min <- format(as.POSIXct(trunc(as.numeric(as.POSIXct(data_filtered$DateTime, format = "%d.%m.%Y %H:%M")) / (30*60)) * (30*60), origin = "1970-01-01"), format = "%Y-%m-%d %H:%M:%S")
+
+# Add column with shifted datetime rounded down to nearest half-hour
+data_filtered$DateTime30MinShifted <- format(as.POSIXct(trunc(as.numeric(as.POSIXct(data_filtered$DateTime, format = "%d.%m.%Y %H:%M")) / (30*60)) * (30*60) + 30*60, origin = "1970-01-01"), format = "%Y-%m-%d %H:%M:%S")
+
+# Aggregate data by AnimalNum, Batch, Change, Phase, and 30-minute interval
+data_filtered_agg <- data_filtered %>%
+  group_by(AnimalNum, Batch, Group, Change, Phase, PriorActive, DateTime30Min, DateTime30MinShifted) %>%
+  summarize(ActivityIndex = mean(ActivityIndex)) %>%
+  ungroup()
+
+# Combine the two datetime columns to form the interval
+data_filtered_agg$TimeInterval <- paste0(data_filtered_agg$DateTime30Min, " to ", data_filtered_agg$DateTime30MinShifted)
+
+# Calculate the number of half-hour periods elapsed since the first half-hour period for each Batch, Cage, and AnimalNum combination
+data_filtered_agg <- data_filtered_agg %>%
+  group_by(Batch, AnimalNum) %>%
+  mutate(HalfHourElapsed = as.numeric(difftime(DateTime30Min, first(DateTime30Min), units = "secs"))/1800) %>%
+  ungroup()
