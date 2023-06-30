@@ -78,6 +78,22 @@ data_filtered <- data %>%
              ConsecInactive == min(ConsecInactive[Phase == "Inactive"]) & Phase == "Inactive")) %>% 
   ungroup()
 
+# Add a new column for SleepBouts
+data_filtered <- data_filtered %>%
+  group_by(AnimalNum, Phase, Change) %>%
+  mutate(
+    SleepBouts = cumsum(ifelse(ActivityIndex == 0 & lag(ActivityIndex != 0, default = TRUE) | row_number() == 1 & ActivityIndex == 0, 1, 0))
+  ) %>%
+  ungroup()
+
+# Add a new column for SleepDur
+data_filtered <- data_filtered %>%
+  group_by(AnimalNum, Phase, Change) %>%
+  mutate(
+    SleepDur = cumsum(ActivityIndex == 0)
+  ) %>%
+  ungroup()
+
 # Round datetime down to the nearest half-hour
 data_filtered$DateTime30Min <- format(as.POSIXct(trunc(as.numeric(as.POSIXct(data_filtered$DateTime, format = "%d.%m.%Y %H:%M")) / (30*60)) * (30*60), origin = "1970-01-01"), format = "%Y-%m-%d %H:%M:%S")
 
