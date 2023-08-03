@@ -7,7 +7,16 @@
 library(cowplot)
 library(ggsignif)
 library(ggplot2)
-
+library(cowplot)
+library(colorspace)
+library(dplyr)
+library(openxlsx)
+library(tidyr)
+library(broom)
+library(readxl)
+library(rstatix)
+library(ggpubr)
+library(Hmisc)
 ## Compare Means between Groups during 2 hours preceding the Active Phase
 
 # Define the list of SUS animals
@@ -42,6 +51,25 @@ res_norm_cookie <- shapiro.test(means_cookie$ActivityIndex[means_cookie$Group ==
 # Normality test for SUS group
 sus_norm_cookie <- shapiro.test(means_cookie$ActivityIndex[means_cookie$Group == "SUS"])
 
+# Perform ANOVA if all groups are normal, otherwise use Kruskal-Wallis
+if (con_norm_cookie$p.value >= 0.05 & res_norm_cookie$p.value >= 0.05 & sus_norm_cookie$p.value >= 0.05) {
+    # If all groups are normal, use ANOVA
+    anova_test <- aov(ActivityIndex ~ Group, data = means_cookie)
+    test_name <- "ANOVA"
+    test_pval <- summary(anova_test)[[1]][["Pr(>F)"]][1]
+    # Determine the significance level for ANOVA
+    sig_levels_aov <- sprintf("%.3f", test_pval)
+    pairwise_aov <- dunn_test(means_cookie, ActivityIndex~Group,
+                              p.adjust.method = "holm"
+    )
+} else {
+    # If at least one group is not normal, use Kruskal-Wallis test
+    kruskal_test <- kruskal.test(ActivityIndex ~ Group, data = means_cookie)
+    test_name <- "Kruskal-Wallis"
+    test_pval <- kruskal_test$p.value
+    # Determine the significance level for Kruskal-Wallis test
+    sig_levels_kw <- sprintf("%.3f", p.adjust(test_pval, method = "BH"))
+}
 # Create plot for individual values
 p_indiv_cookie <- ggplot(cookie_data, aes(x = Group, y = ActivityIndex, color = Group)) +
     geom_jitter(width = 0.2, height = 0, alpha = 0.5) + # Add jittered dots
@@ -75,4 +103,3 @@ p_means_cookie <- ggplot(means_cookie, aes(x = Group, y = ActivityIndex, fill = 
 
 # Arrange two plots side by side
 plot_grid(p_indiv_cookie, p_means_cookie, ncol = 2, align = "v", labels = c("A", "B"))
-p_means_cookie
