@@ -4,13 +4,24 @@
 #  Also, the data will be sorted and formatted
 #  Later, the data points will be plotted.
 
-library(readxl)      # load readxl package for reading excel files
-library(dplyr)       # load dplyr package for data manipulation functions
-library(purrr)       # load purrr package for functional programming
-library(stringr)     # load stringr package for string manipulation
-library(lubridate)   # load lubridate package for date and time functions
-library(readr)        # load readr package for reading csv files
-library(openxlsx)     # load openxlsx package for writing xlsx files
+# List of packages to check and load
+packages <- c("readxl", "dplyr", "purrr", "stringr", "lubridate", "readr", "openxlsx")
+
+# Check if each package is installed, install if not, and load it
+for (package in packages) {
+  if (!requireNamespace(package, quietly = TRUE)) {
+    install.packages(package, dependencies = TRUE)
+  }
+  library(package, character.only = TRUE)
+}
+
+#library(readxl)      # load readxl package for reading excel files
+#library(dplyr)       # load dplyr package for data manipulation functions
+#library(purrr)       # load purrr package for functional programming
+#library(stringr)     # load stringr package for string manipulation
+#library(lubridate)   # load lubridate package for date and time functions
+#library(readr)        # load readr package for reading csv files
+#library(openxlsx)     # load openxlsx package for writing xlsx files
 
 # set the working directory to the parent directory containing the subfolders an get a list of the B1 and B2 subfolders in the directory
 setwd("S:/Lab_Member/Tobi/Experiments/Exp9_Social-Stress/Raw Data/Behavior/RFID/BatchAnalysis")
