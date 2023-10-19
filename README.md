@@ -5,7 +5,9 @@ MMManalyzer is a data processing and analysis tool for RFID data collected from 
 ## Table of Contents
 
 - [Introduction](#introduction)
-- [Features](#features)
+- [Data Formatting and Analysis](#data-formatting-and-analysis)
+  - [Features](#features)
+  - [Analysis Features](#analysis-features)
 - [Getting Started](#getting-started)
   - [Prerequisites](#prerequisites)
   - [Installation](#installation)
@@ -18,10 +20,23 @@ MMManalyzer is a data processing and analysis tool for RFID data collected from 
 
 The MultiMouseMonitor (MMM) is a state-of-the-art system designed for tracking rodents through RFID technology. MMManalyzer serves as a valuable complement by providing tools for data processing and analysis.
 
-## Features
+## Data Formatting and Analysis
 
-- **Data Formatting**: MMManalyzer offers a set of utilities for formatting raw data obtained from the MMM system.
-- **Data Analysis**: The project includes analysis scripts and sheets for in-depth data interpretation.
+MMManalyzer is equipped with features for batch processing data. This includes formatting data based on phases (active and inactive) according to the time of day, grouping and filtering of animals, and cropping of data based on time.
+
+### Features
+
+- **Data Formatting**: Format data based on active and inactive phases and other criteria.
+- **Grouping and Filtering**: Group and filter animals for targeted analysis.
+- **Time Cropping**: Crop data based on specific time intervals.
+
+## Analysis Features
+
+The Analysis component of MMManalyzer offers a range of features for insightful data analysis. These features include:
+
+- **Activity Plotting**: Visualize the activity of groups of mice.
+- **Sleep Analysis**: Perform in-depth sleep analysis.
+- **Activity Comparison**: Compare activity between different groups using linear mixed-effects models (lme).
 
 ## Getting Started
 
