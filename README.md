@@ -7,7 +7,7 @@ MMManalyzer is a data processing and analysis tool for RFID data collected from 
 - [Introduction](#introduction)
 - [Data Formatting and Analysis](#data-formatting-and-analysis)
   - [Features](#features)
-  - [Analysis Features](#analysis-features)
+- [Analysis Features](#analysis-features)
 - [Getting Started](#getting-started)
   - [Prerequisites](#prerequisites)
   - [Installation](#installation)
