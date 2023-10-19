@@ -38,7 +38,7 @@ Before using MMManalyzer, ensure that you have the following software and tools 
 1. **Clone the Repository:**
 
    ```bash
-   git clone https://github.com/yourusername/MMManalyzer.git
+   git clone [https://github.com/yourusername/MMManalyzer.git](https://github.com/topohl/MMManalyzer)
 
 ## Usage
 
