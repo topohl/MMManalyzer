@@ -29,7 +29,6 @@ The MultiMouseMonitor (MMM) is a state-of-the-art system designed for tracking r
 
 Before using MMManalyzer, ensure that you have the following software and tools installed:
 
-- [Miniconda](https://docs.conda.io/projects/miniconda/en/latest/) or [Anaconda](https://www.anaconda.com/)
 - [R](https://cran.r-project.org/) and [RStudio](https://posit.co/download/rstudio-desktop/)
 - A spreadsheet software of your choice (e.g., Microsoft Excel, Google Sheets)
 
