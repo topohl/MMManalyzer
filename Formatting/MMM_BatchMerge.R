@@ -19,6 +19,8 @@ for (package in packages) {
 setwd("S:/Lab_Member/Tobi/Experiments/Exp9_Social-Stress/Raw Data/Behavior/RFID/BatchAnalysis/females/")
 subfolders <- c("B3", "B4")
 
+file_pattern <- "E9_SIS_B\\d+_CC\\d_ActivityIndex.csv"
+
 # function to read and process a single CSV file, it processes all .csv files in the selected destination folder
 process_file <- function(file_path) {
     cat(paste0("Processing ", file_path, "\n"))  # print file path
@@ -48,7 +50,7 @@ data <- map_dfr(subfolders, ~{
     subfolder_paths <- list.dirs(paste0(".", "/", .x), recursive = FALSE)
     
     # get files matching the pattern for Batch 1 and Batch 2
-    all_files <- map(subfolder_paths, ~list.files(path = .x, pattern = "E9_SIS_B\\d+_CC\\d_ActivityIndex.csv", full.names = TRUE)) %>% 
+    all_files <- map(subfolder_paths, ~list.files(path = .x, pattern = file_pattern, full.names = TRUE)) %>% 
         flatten()
     
     # process all files and combine into a single data frame
