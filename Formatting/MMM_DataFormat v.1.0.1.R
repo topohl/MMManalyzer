@@ -51,21 +51,21 @@ files <- files[sapply(files, function(file) any(sapply(sex, function(subfolder) 
 # Combine all files
 purrr::walk(files, process_and_save_xlsx)
 
-# combine them into a single data frame
+# Combine data from different subfolders into a single data frame
 data <- map_dfr(subfolders, ~{
-  # get a list of subfolders in the current B1 or B2 folder
-  subfolders <- list.dirs(paste0(".", "/", .x), recursive = FALSE)
+  # Get a list of subfolders in the current B1 or B2 folder
+  subfolder_paths <- list.dirs(paste0(".", "/", .x), recursive = FALSE)
   
-  # get files matching the pattern for Subfolders - this is for the SIS period
-  all_files <- map(subfolders, ~list.files(path = .x, pattern = c("E9_SIS_B\\d+_CC\\d_ActivityIndex.csv"), full.names = TRUE)) %>% 
+  # Get files matching the pattern for subfolders (SIS period)
+  file_paths <- map(subfolder_paths, ~list.files(path = .x, pattern = c("E9_SIS_B\\d+_CC\\d_ActivityIndex.csv"), full.names = TRUE)) %>% 
     flatten()
   
   ################### cookie hab #####  only activate when analysing cookie habituation ###################
-  # all_files <- map(subfolders, ~list.files(path = .x, pattern = c("E9_SIS_B2_EPMaftrecagechange_ActivityIndex.csv"), full.names = TRUE)) %>% 
+  # file_paths <- map(subfolder_paths, ~list.files(path = .x, pattern = c("E9_SIS_B2_EPMaftrecagechange_ActivityIndex.csv"), full.names = TRUE)) %>% 
   # flatten()
   
-  # process all files(add new columns) and combine into a single data frame
-  all_data <- map(all_files, ~process_file(.x)) %>% 
+  # Process all files (add new columns) and combine into a single data frame
+  all_data <- map(file_paths, ~process_file(.x)) %>% 
     bind_rows()
   
   all_data
@@ -75,25 +75,34 @@ data <- map_dfr(subfolders, ~{
 #  This will read in the data of different xlsx sheets and merge them based on the name of the folder. 
 #  Also, the data will be sorted and formatted
 
-# set the working directory to the parent directory containing the subfolders
+# Set the working directory to the parent directory containing the subfolders
 setwd("S:/Lab_Member/Tobi/Experiments/Exp9_Social-Stress/Raw Data/Behavior/RFID/BatchAnalysis")
 
-# get a list of all subfolders in the directory
+# Get a list of all subfolders in the directory
 subfolders <- list.dirs(".", recursive = FALSE)
 
-con_animals <- readLines(paste0("con_animals.csv"))
-# Define SUS animals (csv file)
-sus_animals <- c(readLines(paste0("S:/Lab_Member/Tobi/Experiments/Exp9_Social-Stress/Analysis/sus_animals.csv")))
-sexAnimals <- read_csv("ListSexes.csv", show_col_types = FALSE)
-excluded_animals <- readLines(paste0("excludedAnimals.csv"))
+# Read the list of animals from a CSV file
 
-# separate the Animal column into AnimalNumber and Cage columns
+message("Reading list of control and susceptible animals...")
+con_animals <- readLines("con_animals.csv")
+sus_animals <- readLines("S:/Lab_Member/Tobi/Experiments/Exp9_Social-Stress/Analysis/sus_animals.csv")
+
+message("Reading list of animal sexes...")
+sexAnimals <- read_csv("ListSexes.csv", show_col_types = FALSE)
+
+# Read the list of excluded animals from a CSV file
+message("Reading list of excluded animals...")
+excluded_animals <- readLines("excludedAnimals.csv")
+
+# Separate the Animal column into AnimalNum and Cage columns
+message("Separating the Animal column into AnimalNum and Cage columns...")
 data <- separate(data, Animal, c("AnimalNum", "Cage"), sep = "_", remove = FALSE)
 
-# convert the DateTime column to a datetime format
+# Convert the DateTime column to a datetime format
+message("Converting the DateTime column to a datetime format...")
 data$DateTime <- as.POSIXct(data$DateTime, format = "%d.%m.%Y %H:%M")
 
-# rename ActivyIndex to ActivityIndex
+# Rename ActivyIndex to ActivityIndex
 data <- data %>%
   rename(ActivityIndex = ActivyIndex)
 
@@ -106,40 +115,44 @@ data <- data %>%
 # - Batch: Converts the 'Batch' column to a factor variable.
 # - Group: Assigns 'CON' or 'SIS' based on the 'AnimalNum' column and a separate vector 'con_animals'.
 
-  message("Assigning sexes...")
-  message("Assigning phases...")
-  message("Assigning prior active phases...")
-  message("Assigning groups...")
-data <- data %>%
+  # Assign sexes, phases, prior active phases, and groups
+  message("Assigning sexes, phases, prior active phases, and groups...")
+  data <- data %>%
+    mutate(
+      Sex = ifelse(AnimalNum %in% sexAnimals$males, "m", "f"),
+      Phase = ifelse(format(DateTime, "%H:%M") >= "18:30" | format(DateTime, "%H:%M") < "06:30", "Active", "Inactive"),
+      PriorActive = ifelse(format(DateTime, "%H:%M") >= "16:30" & format(DateTime, "%H:%M") <= "18:30", "TRUE", "FALSE"),
+      Batch = as.factor(Batch),
+      Group = ifelse(AnimalNum %in% con_animals, "CON", "SIS"),
+      Hour = difftime(DateTime, first(DateTime), units = "hours")
+    ) %>%
+    ungroup()
 
-  mutate(Sex = ifelse(
-      AnimalNum %in% sexAnimals$males,
-      "m",
-      "f"
-    ),
-    Phase = ifelse(
-      format(DateTime, "%H:%M") >= "18:30" | format(DateTime, "%H:%M") < "06:30",
-      "Active",
-      "Inactive"
-    ),
-    PriorActive = ifelse(
-      format(DateTime, "%H:%M") >= "16:30" & format(DateTime, "%H:%M") <= "18:30",
-      "TRUE",
-      "FALSE"
-    ),
-    Batch = as.factor(Batch), # convert Batch to a factor variable
-    
-    # Define Control animals
-    Group = ifelse(
-      AnimalNum %in% con_animals,
-      "CON",
-      "SIS"
+  # Create a new column to represent the consecutive Active phases for each animal
+  data$ConsecActive <- with(data, ave(Phase, AnimalNum, FUN=function(x) {
+    cumsum(c(0, diff(ifelse(x == "Active", 1, 0))) == 1)
+  }))
+  data$ConsecActive <- as.numeric(data$ConsecActive)
+
+  # Remove last two active and inactive phases of CC4 due to grid within cage
+  message("Removing last two active and inactive phases of CC4 due to grid within cage...")
+  data <- data %>%
+    filter(!(Change == "CC4" & Phase %in% c("Active", "Inactive") & ConsecActive >= 15))
+
+  # Exclude animals with non-complete datasets
+  message("Excluding animals with non-complete datasets...")
+  data <- data[!data$AnimalNum %in% excluded_animals,]
+
+  # Remove the first and last inactive phase for each Change and Batch
+  message("Removing first and last inactive phase for each Change and Batch...")
+  data_filtered <- data %>%
+    group_by(Batch, Change, AnimalNum) %>% 
+    mutate(
+      ActivePeriods = ifelse(Phase == "Active", 1, 0),
+      InactivePeriods = ifelse(Phase == "Inactive", 1, 0),
+      TotalPeriods = sum(ActivePeriods, InactivePeriods),
+      ConsecActive = ifelse(Phase == "Active", cumsum(c(1, diff(ifelse(Phase == "Inactive", 0, 1))) == 1), 0)
     )
-  ) %>%
-  group_by(Batch) %>%
-
-  mutate(Hour = difftime(DateTime, first(DateTime), units = "hours")) %>%
-  ungroup()
 
 # Create a new column to represent the consecutive Active phases for each animal
 data$ConsecActive <- with(data, ave(Phase, AnimalNum, FUN=function(x) {
@@ -196,7 +209,7 @@ data_filtered$DateTime30MinShifted <- format(as.POSIXct(trunc(as.numeric(as.POSI
 # Aggregate data by AnimalNum, Batch, Change, Phase, and 30-minute interval
 message("Aggregating data...")
 data_filtered_agg <- data_filtered %>%
-  group_by(AnimalNum, Batch, Group, Change, Phase, PriorActive, DateTime30Min, DateTime30MinShifted) %>%
+  group_by(AnimalNum, Batch, Group, Sex, Change, Phase, PriorActive, DateTime30Min, DateTime30MinShifted) %>%
   summarize(ActivityIndex = mean(ActivityIndex)) %>%
   ungroup()
 

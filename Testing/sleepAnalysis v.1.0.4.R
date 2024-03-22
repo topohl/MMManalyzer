@@ -4,23 +4,16 @@
 #  Later, the data points will be plotted.
 
 # Define a vector of required packages
-requiredPackages <- c("readxl", "dplyr", "purrr", "stringr", "lubridate", "tidyr", "forcats")
+requiredPackages <- c("readxl", "dplyr", "purrr", "stringr", "lubridate", "tidyr", "forcats", "ggplot2", "cowplot", "gridExtra", "lme4", "lmerTest", "emmeans")
 
 # Check if the required packages are installed, and install them if needed
 for (package in requiredPackages) {
   if (!requireNamespace(package, quietly = TRUE)) {
     install.packages(package, dependencies = TRUE)
+  } else {
+    library(library_name, character.only = TRUE)
   }
 }
-
-# Load the required packages
-library(readxl)
-library(dplyr)
-library(purrr)
-library(stringr)
-library(lubridate)
-library(tidyr)
-library(forcats)
 
 # set the working directory to the parent directory containing the subfolders
 setwd("S:/Lab_Member/Tobi/Experiments/Exp9_Social-Stress/Raw Data/Behavior/RFID/BatchAnalysis")
@@ -28,8 +21,12 @@ setwd("S:/Lab_Member/Tobi/Experiments/Exp9_Social-Stress/Raw Data/Behavior/RFID/
 # get a list of all subfolders in the directory
 subfolders <- list.dirs(".", recursive = FALSE)
 
-# read in sus animals from list
-susAnimals <- readLines("S:\\Lab_Member\\Tobi\\Experiments\\Exp9_Social-Stress\\Raw Data\\Behavior\\sus_animals.csv", skipNul = TRUE)
+# Define SUS, excluded and sex of animals
+con_animals <- readLines("con_animals.csv")
+susAnimals <- c(readLines(paste0("S:/Lab_Member/Tobi/Experiments/Exp9_Social-Stress/Analysis/sus_animals.csv")))
+excluded_animals <- readLines("excludedAnimals.csv")
+data <- data[!data$AnimalNum %in% excluded_animals,]
+sexAnimals <- read_csv("ListSexes.csv", show_col_types = FALSE)
 
 # separate the Animal column into AnimalNumber and Cage columns
 data <- separate(data, Animal, c("AnimalNum", "Cage"), sep = "_", remove = FALSE)
@@ -53,9 +50,9 @@ data <- data %>%
       "TRUE",
       "FALSE"
     ),
-    Batch = as.factor(Batch), # convert Batch to a factor variable
+    Batch = as.factor(Batch),
     Group = ifelse(
-      AnimalNum %in% c("OR413", "OR414", "OR415", "OR416", "OR537", "OR538", "OR539", "OR540"),
+      AnimalNum %in% con_animals,
       "CON",
       "SIS"
     )
@@ -64,19 +61,19 @@ data <- data %>%
   mutate(Hour = difftime(DateTime, first(DateTime), units = "hours")) %>%
   ungroup() 
 
-# Create a new columns to represent the consecutive Active and Inactive phases for each animal
+# Create new columns to represent the consecutive Active and Inactive phases for each animal
 data <- data %>%
   group_by(AnimalNum) %>%
   arrange(DateTime) %>%
-  mutate(ConsecActive = cumsum(c(0, diff(ifelse(Phase == "Active", 1, 0))) == 1)) %>%
+  mutate(
+    ConsecActive = cumsum(c(0, diff(ifelse(Phase == "Active", 1, 0))) == 1),
+    ConsecInactive = cumsum(c(0, diff(ifelse(Phase == "Inactive", 1, 0))) == 1)
+  ) %>%
   ungroup() %>%
-  mutate(ConsecActive = as.numeric(ConsecActive)) %>%
-  group_by(AnimalNum) %>%
-  arrange(DateTime) %>%
-  mutate(ConsecInactive = cumsum(c(0, diff(ifelse(Phase == "Inactive", 1, 0))) == 1)) %>%
-  ungroup() %>%
-  mutate(ConsecInactive = as.numeric(ConsecInactive))
-
+  mutate(
+    ConsecActive = as.numeric(ConsecActive),
+    ConsecInactive = as.numeric(ConsecInactive)
+  )
 
 ## Cookie Habituation Challenge, only activate this when analyzing cookie data
 #data <- data %>%
@@ -89,10 +86,6 @@ data <- data %>%
 #remove last two active and inactive phases of CC4 due to grid within cage
 #data <- data %>%
 #  filter(!(Change == "CC4" & Phase %in% c("Active", "Inactive") & ConsecActive >= 15))
-
-# exclude animals with non-complete datasets
-excluded_animals <- c('OQ750', 'OQ751', 'OQ752', 'OQ753', '0001', '0002', 'OR567')
-data <- data[!data$AnimalNum %in% excluded_animals,]
 
 #remove last two active and inactive phases of CC4 due to grid within cage
 #data <- data %>%
@@ -148,15 +141,6 @@ data_filtered_agg <- data_filtered_agg %>%
 
 ##################### PLOT ACTIVITY INDEX #####################
 
-library(ggplot2)
-library(dplyr)
-library(tidyr)
-library(cowplot)
-library(gridExtra)
-library(lme4)
-library(lmerTest)
-library(emmeans)
-
 # Split "SIS" group into "RES" and "SUS" based on "SUS" column
 data_filtered_agg <- data_filtered_agg %>%
   mutate(Group = ifelse(Group == "SIS" & SUS == FALSE, "RES", 
@@ -190,6 +174,7 @@ print(plot)
 
 ##################### MIXED MODELS #####################
 # Perform mixed-effects models with pairwise comparisons
+
 model_results <- list()
 emmeans_results <- list()
 
@@ -241,10 +226,6 @@ for (PhaseValue in c("Active", "Inactive")) {
 }
 
 #################### GENERATE PLOT OF SPECIFIED TIMEFRAME #######################
-
-library(ggplot2)
-library(emmeans)
-library(lmerTest)
 
 # Create an empty list to store the models and results
 model_results <- list()
