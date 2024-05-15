@@ -243,7 +243,7 @@ for (PhaseValue in c("Active", "Inactive")) {
     data_filtered_agg_Phase_subset <- data_filtered_agg_Phase_subset %>%
       filter(ConsecActive %in% c(2, 3, 4, 5))
     
-    model <- lmerTest::lmer(ActivityIndex ~ Group * ConsecActive + (1 | AnimalNum), data = data_filtered_agg_Phase_subset)
+    model <- lmerTest::lmer(ActivityIndex ~ Group * ConsecActive (1 | AnimalNum), data = data_filtered_agg_Phase_subset)
     emmeans_obj <- emmeans(model, ~ Group * ConsecActive, data = data_filtered_agg_Phase_subset, 
                            cov.reduce = FALSE, adjust = "sidak", pbkrtest.limit = 10000)
     pairwise_results <- pairs(emmeans_obj, by = c("ConsecActive"), adjust = "bonferroni")
@@ -319,3 +319,15 @@ for (PhaseValue in c("Active", "Inactive")) {
     print(plot)
   }
 }
+
+# print out list of unique AnimalNums
+unique_animals <- unique(data_filtered_agg$AnimalNum)
+print(unique_animals)
+
+#print out list of SUS, RES and con animals
+sus_animals_list <- unique(data_filtered_agg$AnimalNum[data_filtered_agg$SUS == TRUE])
+print(sus_animals_list)
+res_animals_list <- unique(data_filtered_agg$AnimalNum[data_filtered_agg$Group == "RES"])
+print(res_animals_list)
+con_animals_list <- unique(data_filtered_agg$AnimalNum[data_filtered_agg$Group == "CON"])
+print(con_animals_list)
