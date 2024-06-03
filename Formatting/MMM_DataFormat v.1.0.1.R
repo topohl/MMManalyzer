@@ -13,13 +13,21 @@ for (package in packages) {
   library(package, character.only = TRUE)
 }
 
+# remove the last two active and inactive phases? (Grid in cage)
+gridInCage <- TRUE
+
 # set the working directory to the parent directory containing the subfolders
-setwd("S:/Lab_Member/Tobi/Experiments/Exp9_Social-Stress/Raw Data/Behavior/RFID/BatchAnalysis/females/")
+setwd("S:/Lab_Member/Tobi/Experiments/Exp9_Social-Stress/Raw Data/Behavior/RFID/BatchAnalysis/males/")
 
 # read in excludedAnimal, conAnimals, and susAnimals from .csv files
-excludedAnimals <- read.csv("S:/Lab_Member/Tobi/Experiments/Exp9_Social-Stress/Raw Data/Behavior/RFID/BatchAnalysis/excludedAnimals.csv", header = TRUE, stringsAsFactors = FALSE)
-conAnimals <- read.csv("S:/Lab_Member/Tobi/Experiments/Exp9_Social-Stress/Raw Data/Behavior/RFID/BatchAnalysis/con_animals.csv", header = TRUE, stringsAsFactors = FALSE)
-susAnimals <- read.csv("S:/Lab_Member/Tobi/Experiments/Exp9_Social-Stress/Raw Data/Behavior/RFID/BatchAnalysis/sus_animals.csv", header = TRUE, stringsAsFactors = FALSE)
+excludedAnimals <- read.csv("S:/Lab_Member/Tobi/Experiments/Exp9_Social-Stress/Raw Data/Behavior/RFID/BatchAnalysis/excludedAnimals.csv", header = FALSE, stringsAsFactors = FALSE)
+conAnimals <- read.csv("S:/Lab_Member/Tobi/Experiments/Exp9_Social-Stress/Raw Data/Behavior/RFID/BatchAnalysis/con_animals.csv", header = FALSE, stringsAsFactors = FALSE)
+susAnimals <- read.csv("S:/Lab_Member/Tobi/Experiments/Exp9_Social-Stress/Analysis/sus_animals.csv", header = FALSE, stringsAsFactors = FALSE)
+
+# Extract the animal numbers from the first column
+conAnimalNums <- conAnimals[[1]]
+susAnimalNums <- susAnimals[[1]]
+exclAnimalNums <- excludedAnimals[[1]]
 
 # get a list of all subfolders in the directory
 subfolders <- list.dirs(".", recursive = FALSE)
@@ -32,6 +40,14 @@ data <- separate(data, Animal, c("AnimalNum", "Cage"), sep = "_", remove = FALSE
 print("Converting DateTime column to datetime format...")
 data$DateTime <- as.POSIXct(data$DateTime, format = "%d.%m.%Y %H:%M")
 
+# Assign animals to groups
+print("Assigning animals to groups...")
+data <- data %>% mutate(Group = ifelse(AnimalNum %in% susAnimalNums, "SUS", ifelse(AnimalNum %in% conAnimalNums, "CON", "RES")))
+
+# exclude animals with non-complete datasets
+print("Exclude animals with non-complete datasets...")
+data <- data[!data$AnimalNum %in% exclAnimalNums,]
+
 # rename ActivyIndex to ActivityIndex
 data <- data %>%
   rename(ActivityIndex = ActivyIndex)
@@ -40,7 +56,6 @@ data <- data %>%
 print("Creating Phase column based on time of day...")
 print("Define timeframes before Active Phase...")
 print("Converting Batch to factor variable...")
-print("Define Control animals...")
 print("Calculate the number of hours elapsed since the first timestamp for each Batch...")
 data <- data %>%
   mutate(
@@ -55,13 +70,6 @@ data <- data %>%
       "FALSE"
     ),
     Batch = as.factor(Batch), # convert Batch to a factor variable
-    
-    # Define Control animals
-    Group = ifelse(
-      AnimalNum %in% conAnimals$AnimalNum,
-      "CON",
-      "SIS"
-    )
   ) %>%
   group_by(Batch) %>%
   mutate(Hour = difftime(DateTime, first(DateTime), units = "hours")) %>%
@@ -87,14 +95,16 @@ data_filtered <- data %>%
            ConsecInactive == min(ConsecInactive[Phase == "Inactive"]) & Phase == "Inactive")) %>% 
   ungroup()
 
-#remove last two active and inactive phases of CC4 due to grid within cage
-print("Remove last two active and inactive phases of CC4 due to grid within cage")
-data <- data %>%
-  filter(!(Change == "CC4" & Phase %in% c("Active", "Inactive") & ConsecActive >= 14))
+#remove last two active and inactive phases of CC4 due to grid within cage only if gridInCage is TRUE
+if (gridInCage) {
+  print("Remove last two active and inactive phases of CC4 due to grid within cage...")
+  data <- data %>%
+    filter(!(Change == "CC4" & Phase %in% c("Active", "Inactive") & ConsecActive >= 14))
+} else {
+  print("Skipping removal of last two active and inactive phases of CC4...")
+}
 
-# exclude animals with non-complete datasets
-print("Exclude animals with non-complete datasets...")
-data <- data[!data$AnimalNum %in% excludedAnimals,]
+
 
 # Add a new column for SleepBouts
 print("Add new column for SleepBouts...")
