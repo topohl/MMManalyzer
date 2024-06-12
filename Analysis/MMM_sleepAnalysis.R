@@ -1,137 +1,158 @@
-# List of packages to check and load
-packages <- c("ggplot2", "gridExtra", "cowplot", "tidyr", "dplyr", "rstatix", "readxl", "svglite")
+# List of required packages
+required_packages <- c("ggplot2", "gridExtra", "cowplot", "tidyr", "dplyr", "rstatix", "readxl", "svglite", "stringr", "openxlsx")
 
-# Check if each package is installed, install if not, and load it
-for (package in packages) {
-    if (!requireNamespace(package, quietly = TRUE)) {
-        install.packages(package, dependencies = TRUE)
+# Function to check and install missing packages
+install_and_load <- function(packages) {
+    for (package in packages) {
+        if (!requireNamespace(package, quietly = TRUE)) {
+            install.packages(package, dependencies = TRUE)
+        }
+        library(package, character.only = TRUE)
     }
-    library(package, character.only = TRUE)
 }
 
-############## Define constants for file paths, sheet names, specific animals, and group colors ###########
+# Install and load required packages
+install_and_load(required_packages)
 
-# RESULT PATHS
-## Sleep directory path for results 
-sleep_directory <- "S:/Lab_Member/Tobi/Experiments/Exp9_Social-Stress/Analysis/SIS_Analysis/statistics/Sleep"
-## Graphs directory path for result plots
-graphs_directory <- "S:/Lab_Member/Tobi/Experiments/Exp9_Social-Stress/Analysis/SIS_Analysis/statistics/sleep/graphs"
+################################ Define constants for file paths, specific animals, and group colors ################################
 
-# SOURCE PATHS
-## Working directory path
+# Directory paths for results
+sleep_directory <- "C:/Users/topohl/Documents/test/sleep"
+graphs_directory <- "C:/Users/topohl/Documents/test/sleep"  # Corrected the typo in the path
+
+# Define the working directory and source custom functions
 working_directory <- "S:/Lab_Member/Anja/Git/AnjaIntern/code_cleanup"
-# Include functions
-source(paste0("C:/Users/topohl/Documents/GitHub/MMManalyzer/Analysis/MMM_functions.R"))
+source("C:/Users/topohl/Documents/GitHub/MMManalyzer/Analysis/MMM_functions.R")
 
-# Define SUS animals (csv file)
+# Load lists of SUS animals and excluded animals from CSV files
 sus_animals <- readLines("S:/Lab_Member/Tobi/Experiments/Exp9_Social-Stress/Analysis/sus_animals.csv")
+excluded_animals <- readLines("S:/Lab_Member/Tobi/Experiments/Exp9_Social-Stress/Raw Data/Behavior/RFID/BatchAnalysis/excludedAnimals.csv")
 
-# Define group colors
-groupColors <- c("#1e3791", "#76A2E8", "#F79719")
+# Filter out excluded animals from the data
+data_filtered <- data_filtered %>% filter(!AnimalNum %in% excluded_animals)
 
-# Define the factor to include/exclude
-# Set to TRUE to include "Phase" or FALSE to exclude
-# includeFactorExists prohibits the use of a factor that does not exist in data
+# Define color palette for groups
+group_colors <- c("#1e3791", "#76A2E8", "#F79719")
+
+# Determine whether to include 'Phase' and 'Sex' factors in the analysis
 include_phase <- incldeFactorExist("Phase", data_filtered, TRUE) 
 include_sex <- incldeFactorExist("Sex", data_filtered, TRUE)
-twoWayANOVA <- TRUE
+two_way_ANOVA <- FALSE
 
-#include_gender <- incldeFactorExist("Gender", data_filtered, TRUE)
+################################ Calculating and summarizing ################################
 
-################################ Calculating and summarizing #########################################################
+# Function to calculate sleep-related metrics
+calculate_sleep_metrics <- function(data) {
+    data %>%
+        group_by_at(intersect(c("AnimalNum", "Batch", "Change", "Group", "Phase", "Sex"), names(data))) %>%
+        summarize(
+            SleepCount = sum(ActivityIndex == 0),
+            TotalCount = n(),
+            PercentageSleep = (SleepCount / TotalCount) * 100,
+            TotalSleepingTime = sum(ActivityIndex == 0),
+            SleepBouts = sum(ActivityIndex == 0 & lag(ActivityIndex, default = 1) != 0),
+            AvgSleepBoutDuration = ifelse(SleepBouts == 0, 0, TotalSleepingTime / SleepBouts)
+        )
+}
 
-# Add new columns (SleepCount, TotalCount...) to dataframe containing the required calculations
-total_sleep_info_per_change <- data_filtered %>%
-    group_by_at(intersect(c("AnimalNum", "Batch", "Change", "Group", "Phase", "Sex"), names(data_filtered))) %>%  # Check if all column names (esp. "Phase" and "Sex") exist in data_filtered
-    summarize(
-        SleepCount = sum(ActivityIndex == 0),
-        TotalCount = n(),
-        PercentageSleep = (SleepCount / TotalCount) * 100,
-        TotalSleepingTime = sum(ActivityIndex == 0),
-        SleepBouts = sum(ActivityIndex == 0 & lag(ActivityIndex, default = 1) != 0),
-        AvgSleepBoutDuration = ifelse(SleepBouts == 0, 0, TotalSleepingTime / SleepBouts)
-    )
+# Calculate sleep-related metrics
+total_sleep_info_per_change <- calculate_sleep_metrics(data_filtered)
 
-# Update Group column based on SUS animals
-# Overwrites some SIS and CON to SUS and RES groups
-total_sleep_info_per_change <- total_sleep_info_per_change %>%
-    mutate(
-        Group = if_else(AnimalNum %in% sus_animals, "SUS", if_else(Group == "SIS", "RES", Group))
-    )
+# Summarize the data to create an overview of sleep-activity for each individual
+summarize_data <- function(data) {
+    data %>%
+        group_by_at(intersect(c("AnimalNum", "Phase", "Sex"), names(data))) %>%
+        summarize(
+            Batch = first(Batch),
+            Group = first(Group),
+            SleepBouts = sum(SleepBouts),
+            TotalSleepingTime = sum(TotalSleepingTime),
+            PercentageSleep = mean(PercentageSleep),
+            AvgSleepBoutDuration = mean(AvgSleepBoutDuration)
+        ) %>%
+        ungroup()
+}
 
 # Summarize the data
-# Creates an overview of the sleep-activity of each individual
-summarized_data <- total_sleep_info_per_change %>%
-    group_by_at(intersect(c("AnimalNum", "Phase", "Sex"), names(total_sleep_info_per_change))) %>%  # Check if "Phase", "AnimalNum" and "Sex" exist in total_sleep_info_per_change
-    summarize(
-        Batch = first(Batch),
-        Group = first(Group),
-        SleepBouts = sum(SleepBouts),
-        TotalSleepingTime = sum(TotalSleepingTime),
-        PercentageSleep = mean(PercentageSleep),
-        AvgSleepBoutDuration = mean(AvgSleepBoutDuration)
-    ) %>%
-    ungroup()
+overall_data <- summarize_data(total_sleep_info_per_change)
 
-# Rename
-overallData <- summarized_data
+################################ Calculate coefficient of variation for sleep metrics ################################
 
-###################### Execute tests and generate plots ###################################################
+# Function to calculate coefficient of variation
+calculate_cv <- function(data) {
+    data %>%
+        group_by(AnimalNum, Batch, Group, Phase) %>%
+        summarize(
+            CV_SleepCount = sd(SleepCount) / mean(SleepCount),
+            CV_TotalCount = sd(TotalCount) / mean(TotalCount),
+            CV_PercentageSleep = sd(PercentageSleep) / mean(PercentageSleep),
+            CV_TotalSleepingTime = sd(TotalSleepingTime) / mean(TotalSleepingTime),
+            CV_SleepBouts = sd(SleepBouts) / mean(SleepBouts),
+            CV_AvgSleepBoutDuration = sd(AvgSleepBoutDuration) / mean(AvgSleepBoutDuration)
+        ) %>%
+        ungroup()
+}
 
-# Get the list of columns to plot (excluding non-numeric values, which are added manually)
-columnsToPlot <- setdiff(names(overallData), c("AnimalNum", "Group", "Phase", "Batch", "Sex"))
+# Calculate coefficient of variation
+cv_data <- calculate_cv(total_sleep_info_per_change)
 
-# Run statistical tests on given data with wanted columns
-# Generates three result dataframes
+# Merge summarized data with coefficient of variation data
+overall_data <- merge(overall_data, cv_data, by = c("AnimalNum", "Batch", "Group", "Phase"))
 
-# Initialize empty lists
-allTestResults <- list()
-allPlots <- list()
-allPosthocResults <- list()
+################################ Execute tests and generate plots ################################
 
-# Declare vectors of the variables which are not always included
-phases <-  " "
-if (include_phase) phases <-  c("Active", "Inactive")
-sexes <-  " "
-if (include_sex) sexes <- c("m", "f")
+# Identify columns to plot, excluding non-numeric values
+columns_to_plot <- setdiff(names(overall_data), c("AnimalNum", "Group", "Phase", "Batch", "Sex", "TotalCount", "CV_TotalCount"))
 
-# Iterate through each variable, phase, and sex, and perform tests
-for (variable in columnsToPlot) {
+# Initialize lists to store results and plots
+all_test_results <- list()
+all_plots <- list()
+all_posthoc_results <- list()
+
+# Determine which phases and sexes to include in the analysis
+phases <- if (include_phase) c("Active", "Inactive") else " "
+sexes <- if (include_sex) c("m", "f") else " "
+
+# Iterate through each variable, phase, and sex, and perform statistical tests
+for (variable in columns_to_plot) {
     for (phase in phases) {
         for (sex in sexes) {
-            result <- testAndPlotVariable(overallData, variable, phase, sex)
-            # Add result list (containing the columns testResults, plot, posthocResults) to other fitting list
+            result <- testAndPlotVariable(overall_data, variable, phase, sex)
             if (!is.null(result)) {
-                # posthocResults is always NULL for the Wilcoxon test
-                if (is.null(result$posthocResults)) {
-                    allTestResults <- c(allTestResults, list(result$testResults))
-                } else {
-                    allTestResults <- c(allTestResults, list(result$testResults))
-                    allPosthocResults <- c(allPosthocResults, list(result$posthocResults))
+                all_test_results <- c(all_test_results, list(result$testResults))
+                if (!is.null(result$posthocResults)) {
+                    all_posthoc_results <- c(all_posthoc_results, list(result$posthocResults))
                 }
-                # Add the plot
-                allPlots <- c(allPlots, list(result$plot))
+                all_plots <- c(all_plots, list(result$plot))
             }
         }
     }
 }
 
-####################### Saving the results #############################################################
+################################ Save the results ################################
 
-# Convert the list of test results to a data frame
-allTestResultsDf <- bind_rows(allTestResults)
-# Save the test results data frame to a CSV file
-write.csv(allTestResultsDf, file = paste0(sleep_directory, "/test_results_Sleep.csv"), row.names = FALSE)
-# Save the post hoc results to a CSV file
-if (!is.null(allPosthocResults) && length(allPosthocResults) > 0) {
-    allPosthocResultsDf <- bind_rows(allPosthocResults)
-    write.csv(allPosthocResultsDf, file = paste0(sleep_directory, "/posthoc_results_Sleep.csv"), row.names = FALSE)
+# Convert list of test results to a data frame and save to CSV
+all_test_results_df <- bind_rows(all_test_results)
+write.csv(all_test_results_df, file = paste0(sleep_directory, "/test_results_Sleep.csv"), row.names = FALSE)
+
+# Save post hoc results to CSV if available
+if (length(all_posthoc_results) > 0) {
+    all_posthoc_results_df <- bind_rows(all_posthoc_results)
+    write.csv(all_posthoc_results_df, file = paste0(sleep_directory, "/posthoc_results_Sleep.csv"), row.names = FALSE)
 }
 
-# Save the plots
-savePlotsInDir(allTestResults, allPlots, graphs_directory, ".svg")
+# Save the generated plots
+savePlotsInDir(all_test_results, all_plots, graphs_directory, ".svg")
 
-############### Show plots in R ########################################################################
+################################ Display plots ################################
 
-# Create a grid of plots
-grid.arrange(grobs = allPlots, ncol = 4)
+# Arrange plots into a grid
+grid_plots <- grid.arrange(grobs = all_plots, ncol = 4)
+
+# Save the arranged grid as SVG
+ggsave(file = paste0(graphs_directory, "/allPlots.svg"), plot = grid_plots, width = 30, height = 20, device = "svg")
+
+# Save individual and summarized data to CSV files
+write.csv(overall_data, file = paste0(sleep_directory, "/overallData.csv"), row.names = FALSE)
+write.csv(total_sleep_info_per_change, file = paste0(sleep_directory, "/total_sleep_info_per_change.csv"), row.names = FALSE)
+write.csv(cv_data, file = paste0(sleep_directory, "/cv.csv"), row.names = FALSE)
