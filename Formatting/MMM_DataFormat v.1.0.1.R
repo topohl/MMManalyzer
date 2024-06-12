@@ -6,7 +6,7 @@
 required_packages <- c("readxl", "dplyr", "purrr", "stringr", "lubridate", "readr", "openxlsx","tidyr")
 
 # Check if each package is installed, install if not, and load it
-for (package in packages) {
+for (package in required_packages) {
   if (!requireNamespace(package, quietly = TRUE)) {
     install.packages(package, dependencies = TRUE)
   }
