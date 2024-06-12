@@ -16,8 +16,8 @@ for (package in packages) {
 }
 
 # set the working directory to the parent directory containing the subfolders and get a list of the B1 and B2 subfolders in the directory
-setwd("S:/Lab_Member/Tobi/Experiments/Exp9_Social-Stress/Raw Data/Behavior/RFID/BatchAnalysis/females/")
-subfolders <- c("B3", "B4")
+setwd("S:/Lab_Member/Tobi/Experiments/Exp9_Social-Stress/Raw Data/Behavior/RFID/BatchAnalysis/")
+subfolders <- c("males/B1", "males/B2", "females/B3", "females/B4", "males/B5", "females/B6")
 
 file_pattern <- "E9_SIS_B\\d+_CC\\d_ActivityIndex.csv"
 
@@ -41,8 +41,10 @@ process_and_save_xlsx <- function(file_path) {
 }
 
 # read all CSV files in the subfolders, transform them, and save as XLSX files
-files <- list.files(path = "S:/Lab_Member/Tobi/Experiments/Exp9_Social-Stress/Raw Data/Behavior/RFID/BatchAnalysis/females/", pattern = ".csv$", recursive = TRUE, full.names = TRUE)
-purrr::walk(files, process_and_save_xlsx)
+#files <- list.files(path = c("S:/Lab_Member/Tobi/Experiments/Exp9_Social-Stress/Raw Data/Behavior/RFID/BatchAnalysis/males",
+#                             "S:/Lab_Member/Tobi/Experiments/Exp9_Social-Stress/Raw Data/Behavior/RFID/BatchAnalysis/females"),
+#                    pattern = ".csv$", recursive = TRUE, full.names = TRUE)
+#purrr::walk(files, process_and_save_xlsx)
 
 # read all CSV files in the B1 and B2 subfolders, convert them to xlsx, and combine them into a single data frame
 data <- map_dfr(subfolders, ~{
@@ -62,3 +64,5 @@ data <- map_dfr(subfolders, ~{
 
 # combine all data frames into a single data frame
 combined_data <- bind_rows(data)
+
+
