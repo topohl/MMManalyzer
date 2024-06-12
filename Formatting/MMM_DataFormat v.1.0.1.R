@@ -3,7 +3,7 @@
 #  Also, the data will be sorted and formatted
 
 # List of packages to check and load
-packages <- c("readxl", "dplyr", "purrr", "stringr", "lubridate", "readr", "openxlsx","tidyr")
+required_packages <- c("readxl", "dplyr", "purrr", "stringr", "lubridate", "readr", "openxlsx","tidyr")
 
 # Check if each package is installed, install if not, and load it
 for (package in packages) {
@@ -23,6 +23,7 @@ setwd("S:/Lab_Member/Tobi/Experiments/Exp9_Social-Stress/Raw Data/Behavior/RFID/
 excludedAnimals <- read.csv("S:/Lab_Member/Tobi/Experiments/Exp9_Social-Stress/Raw Data/Behavior/RFID/BatchAnalysis/excludedAnimals.csv", header = FALSE, stringsAsFactors = FALSE)
 conAnimals <- read.csv("S:/Lab_Member/Tobi/Experiments/Exp9_Social-Stress/Raw Data/Behavior/RFID/BatchAnalysis/con_animals.csv", header = FALSE, stringsAsFactors = FALSE)
 susAnimals <- read.csv("S:/Lab_Member/Tobi/Experiments/Exp9_Social-Stress/Analysis/sus_animals.csv", header = FALSE, stringsAsFactors = FALSE)
+sexAnimals <- read.csv("S:/Lab_Member/Tobi/Experiments/Exp9_Social-Stress/Raw Data/Behavior/RFID/BatchAnalysis/ListSexes.csv", header = TRUE, stringsAsFactors = FALSE)
 
 # Extract the animal numbers from the first column
 conAnimalNums <- conAnimals[[1]]
@@ -43,6 +44,10 @@ data$DateTime <- as.POSIXct(data$DateTime, format = "%d.%m.%Y %H:%M")
 # Assign animals to groups
 print("Assigning animals to groups...")
 data <- data %>% mutate(Group = ifelse(AnimalNum %in% susAnimalNums, "SUS", ifelse(AnimalNum %in% conAnimalNums, "CON", "RES")))
+
+# assign Sex to animals
+print("Sexing animals...")
+data <- data %>% mutate(Sex = ifelse(AnimalNum %in% sexAnimals$males, "m", ifelse(AnimalNum %in% sexAnimals$females, "f", "")))
 
 # exclude animals with non-complete datasets
 print("Exclude animals with non-complete datasets...")
@@ -104,8 +109,6 @@ if (gridInCage) {
   print("Skipping removal of last two active and inactive phases of CC4...")
 }
 
-
-
 # Add a new column for SleepBouts
 print("Add new column for SleepBouts...")
 data_filtered <- data_filtered %>%
@@ -133,7 +136,7 @@ data_filtered$DateTime30MinShifted <- format(as.POSIXct(trunc(as.numeric(as.POSI
 # Aggregate data by AnimalNum, Batch, Change, Phase, and 30-minute interval
 print("Aggregate data by AnimalNum, Batch, Change, Phase, and 30-minute interval...")
 data_filtered_agg <- data_filtered %>%
-  group_by(AnimalNum, Batch, Group, Change, Phase, PriorActive, DateTime30Min, DateTime30MinShifted) %>%
+  group_by(AnimalNum, Sex, Batch, Group, Change, Phase, PriorActive, DateTime30Min, DateTime30MinShifted) %>%
   summarize(ActivityIndex = mean(ActivityIndex)) %>%
   ungroup()
 
