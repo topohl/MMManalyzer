@@ -14,7 +14,8 @@ for (package in required_packages) {
 }
 
 # remove the last two active and inactive phases? (Grid in cage)
-gridInCage <- TRUE
+gridInCage <- FALSE
+analyseGridInCage <- TRUE
 
 # set the working directory to the parent directory containing the subfolders
 setwd("S:/Lab_Member/Tobi/Experiments/Exp9_Social-Stress/Raw Data/Behavior/RFID/BatchAnalysis/males/")
@@ -23,7 +24,7 @@ setwd("S:/Lab_Member/Tobi/Experiments/Exp9_Social-Stress/Raw Data/Behavior/RFID/
 excludedAnimals <- read.csv("S:/Lab_Member/Tobi/Experiments/Exp9_Social-Stress/Raw Data/Behavior/RFID/BatchAnalysis/excludedAnimals.csv", header = FALSE, stringsAsFactors = FALSE)
 conAnimals <- read.csv("S:/Lab_Member/Tobi/Experiments/Exp9_Social-Stress/Raw Data/Behavior/RFID/BatchAnalysis/con_animals.csv", header = FALSE, stringsAsFactors = FALSE)
 susAnimals <- read.csv("S:/Lab_Member/Tobi/Experiments/Exp9_Social-Stress/Analysis/sus_animals.csv", header = FALSE, stringsAsFactors = FALSE)
-sexAnimals <- read.csv("S:/Lab_Member/Tobi/Experiments/Exp9_Social-Stress/Raw Data/Behavior/RFID/BatchAnalysis/ListSexes.csv", header = TRUE, stringsAsFactors = FALSE)
+sexAnimals <- read.csv("S:/Lab_Member/Tobi/Experiments/Exp9_Social-Stress/Raw Data/Behavior/RFID/BatchAnalysis/ListSexes.csv", header = TRUE, stringsAsFactors = FALSE, sep = "\t")
 
 # Extract the animal numbers from the first column
 conAnimalNums <- conAnimals[[1]]
@@ -53,9 +54,19 @@ data <- data %>% mutate(Sex = ifelse(AnimalNum %in% sexAnimals$males, "m", ifels
 print("Exclude animals with non-complete datasets...")
 data <- data[!data$AnimalNum %in% exclAnimalNums,]
 
-# rename ActivyIndex to ActivityIndex
-data <- data %>%
-  rename(ActivityIndex = ActivyIndex)
+# Check if ActivityIndex already exists
+if (!exists("ActivityIndex")) {
+  # Check if ActivyIndex exists
+  if ("ActivyIndex" %in% colnames(data)) {
+    # Rename ActivyIndex to ActivityIndex
+    data <- data %>%
+      rename(ActivityIndex = ActivyIndex)
+  } else {
+    print("Skipping renaming of ActivyIndex to ActivityIndex because ActivyIndex does not exist.")
+  }
+} else {
+  print("Skipping renaming of ActivyIndex to ActivityIndex because ActivityIndex already exists.")
+}
 
 # create a Phase column based on the time of day and print message whats happening
 print("Creating Phase column based on time of day...")
@@ -83,6 +94,7 @@ data <- data %>%
 # create empty columns ConsecActive and ConsecInactive columns in data_filtered
 data$ConsecActive <- 0
 data$ConsecInactive <- 0
+data$ConsecPhases <- 0
 
 # Remove the first and last inactive phase for each Change and Batch
 print("Create new columns ActivePeriods, InactivePeriods, TotalPeriods, ConsecActive, and ConsecInactive...")
@@ -94,20 +106,44 @@ data_filtered <- data %>%
     InactivePeriods = ifelse(Phase == "Inactive", 1, 0),
     TotalPeriods = sum(ActivePeriods, InactivePeriods),
     ConsecActive = ifelse(Phase == "Active", cumsum(c(0, diff(ifelse(Phase == "Inactive", 0, 1))) == 1), 0),
-    ConsecInactive = ifelse(Phase == "Inactive", cumsum(c(1, diff(ifelse(Phase == "Active", 0, 1))) == 1), 0)
+    ConsecInactive = ifelse(Phase == "Inactive", cumsum(c(1, diff(ifelse(Phase == "Active", 0, 1))) == 1), 0),
+    ConsecPhases = cumsum(c(0, diff(as.numeric(factor(Phase))) != 0)) # Increment on phase switch
   ) %>% 
   filter(!(ConsecInactive == max(ConsecInactive[Phase == "Inactive"]) & Phase == "Inactive" |
            ConsecInactive == min(ConsecInactive[Phase == "Inactive"]) & Phase == "Inactive")) %>% 
   ungroup()
 
-#remove last two active and inactive phases of CC4 due to grid within cage only if gridInCage is TRUE
-if (gridInCage) {
-  print("Remove last two active and inactive phases of CC4 due to grid within cage...")
-  data <- data %>%
-    filter(!(Change == "CC4" & Phase %in% c("Active", "Inactive") & ConsecActive >= 14))
-} else {
-  print("Skipping removal of last two active and inactive phases of CC4...")
+# Define a function to remove last two active and inactive phases
+removePhases <- function(data) {
+  if (gridInCage) {
+    print("Remove last two active and inactive phases of CC4 due to grid within cage...")
+    data <- data %>%
+      filter(!(Change == "CC4" & Phase %in% c("Active", "Inactive") & ConsecActive >= 3 & ConsecInactive >= 3))
+  } else {
+    print("Skipping removal of last two active and inactive phases of CC4...")
+  }
+  return(data)
 }
+
+# Define function
+analyseGrid <- function(data) {
+  if (analyseGridInCage) {
+    print("Extracting timeframe when grid is in cage...")
+    data <- data %>% 
+      filter(Change == "CC4" & ConsecPhases > 2)
+  } else {
+    print("Skipping extraction of timeframe when grid is in cage...")
+  }
+  return(data)
+}
+
+# Remove phases in data
+data <- removePhases(data)
+data <- analyseGrid(data)
+
+# Remove phases in data_filtered
+data_filtered <- removePhases(data_filtered)
+data_filtered <- analyseGrid(data_filtered)
 
 # Add a new column for SleepBouts
 print("Add new column for SleepBouts...")
@@ -136,7 +172,7 @@ data_filtered$DateTime30MinShifted <- format(as.POSIXct(trunc(as.numeric(as.POSI
 # Aggregate data by AnimalNum, Batch, Change, Phase, and 30-minute interval
 print("Aggregate data by AnimalNum, Batch, Change, Phase, and 30-minute interval...")
 data_filtered_agg <- data_filtered %>%
-  group_by(AnimalNum, Sex, Batch, Group, Change, Phase, PriorActive, DateTime30Min, DateTime30MinShifted) %>%
+  group_by(AnimalNum, Sex, Batch, Group, Change, Phase, ConsecActive, ConsecInactive, ConsecPhases, PriorActive, DateTime30Min, DateTime30MinShifted) %>%
   summarize(ActivityIndex = mean(ActivityIndex)) %>%
   ungroup()
 
