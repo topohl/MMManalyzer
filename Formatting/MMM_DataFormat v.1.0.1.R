@@ -14,8 +14,8 @@ for (package in required_packages) {
 }
 
 # remove the last two active and inactive phases? (Grid in cage)
-gridInCage <- FALSE
-analyseGridInCage <- TRUE
+gridInCage <- TRUE
+analyseGridInCage <- FALSE
 
 # set the working directory to the parent directory containing the subfolders
 setwd("S:/Lab_Member/Tobi/Experiments/Exp9_Social-Stress/Raw Data/Behavior/RFID/BatchAnalysis/males/")
@@ -118,7 +118,9 @@ removePhases <- function(data) {
   if (gridInCage) {
     print("Remove last two active and inactive phases of CC4 due to grid within cage...")
     data <- data %>%
-      filter(!(Change == "CC4" & Phase %in% c("Active", "Inactive") & ConsecActive >= 3 & ConsecInactive >= 3))
+      filter(!(Change == "CC4" & 
+                 ((Phase == "Active" & ConsecActive > 4) | 
+                    (Phase == "Inactive" & ConsecInactive > 4))))
   } else {
     print("Skipping removal of last two active and inactive phases of CC4...")
   }
