@@ -188,16 +188,57 @@ performWilcoxonTest <- function(dataGroup1, dataGroup2) {
 
 # Function to perform normality test and appropriate statistical test for each variable and phase
 testAndPlotVariable <- function(data, variableName, phase, sex) {
+    cat("Processing variable:", variableName, "Phase:", phase, "Sex:", sex, "\n", append = TRUE)
+
+  # Check if variableName exists and is numeric
+  if (!(variableName %in% names(data))) {
+    cat("Error: variableName", variableName, "does not exist in the data.\n", append = TRUE)
+    return(NULL)
+  }
+  if (!is.numeric(data[[variableName]])) {
+    cat("Error: variableName", variableName, "is not numeric.\n", append = TRUE)
+    return(NULL)
+  }
+  
   #filtering specific phase or sex if needed 
   filteredData <- data %>%
     filter(if(include_phase) Phase == phase else TRUE) %>%   # Include/exclude "Phase" based on the variable
     filter(if(include_sex) Sex == sex else TRUE)            # Include/exclude "Sex" based on the variable
+ # Check if there is data remaining after filtering
+  if (nrow(filteredData) == 0) {
+    cat("Error: No data remaining after filtering.\n", append = TRUE)
+    return(NULL)
+  }
 
   # save unique group names
   uniqueGroups <- unique(filteredData$Group)  #SUS,RES,CON...
   # number of different groups in data
   numGroups <- length(uniqueGroups)
+  # calculate the n of each group
+  nGroup1 <- sum(filteredData$Group == uniqueGroups[1])
+  nGroup2 <- sum(filteredData$Group == uniqueGroups[2])
+  nGroup3 <- sum(filteredData$Group == uniqueGroups[3])
+
+  # print unique groups
+  cat(paste0("Unique groups: ", uniqueGroups, "\n"))
+
+  # print number of groups
+  cat(paste0("Number of groups: ", numGroups, "\n"))
   
+  # print the number of observations of each group
+  cat(paste0("Number of observations in ", uniqueGroups[1], ": ", nGroup1, "\n"))
+  cat(paste0("Number of observations in ", uniqueGroups[2], ": ", nGroup2, "\n"))
+  cat(paste0("Number of observations in ", uniqueGroups[3], ": ", nGroup3, "\n"))
+
+# Debugging information
+  cat("Unique groups:", paste(uniqueGroups, collapse = ", "), "\n")
+  cat("Number of groups:", numGroups, "\n")
+  for (group in uniqueGroups) {
+    groupData <- filteredData[[variableName]][filteredData$Group == group]
+    cat("Number of observations in", group, ":", length(groupData), "\n")
+    cat("Sample data for", group, ":", head(groupData), "\n")
+  }
+
   # Check if the variable is numeric (if not, return Null)
   if (is.numeric(filteredData[[variableName]])) {
     if (numGroups == 2) {
