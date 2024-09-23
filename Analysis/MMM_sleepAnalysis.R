@@ -17,8 +17,8 @@ install_and_load(required_packages)
 ################################ Define constants for file paths, specific animals, and group colors ################################
 
 # Directory paths for results
-sleep_directory <- "C:/Users/topohl/Documents/test/sleep"
-graphs_directory <- "C:/Users/topohl/Documents/test/sleep"  # Corrected the typo in the path
+sleep_directory <- "S:/Lab_Member/Tobi/Experiments/Exp9_Social-Stress/Analysis/Behavior/RFID/Sleep"
+graphs_directory <- "S:/Lab_Member/Tobi/Experiments/Exp9_Social-Stress/Analysis/Behavior/RFID/Sleep/plots"
 
 # Define the working directory and source custom functions
 working_directory <- "S:/Lab_Member/Anja/Git/AnjaIntern/code_cleanup"
@@ -32,7 +32,13 @@ excluded_animals <- readLines("S:/Lab_Member/Tobi/Experiments/Exp9_Social-Stress
 data_filtered <- data_filtered %>% filter(!AnimalNum %in% excluded_animals)
 
 # Define color palette for groups
-group_colors <- c("#1e3791", "#76A2E8", "#F79719")
+groupColors <- c("#1e3791", "#76A2E8", "#F79719")
+
+# define the change to analyze
+changeToAnalyze <- "CC4"
+
+# add TRUE of FALSE to analysze specific changes
+analyzeSingleChange <- TRUE
 
 # Determine whether to include 'Phase' and 'Sex' factors in the analysis
 include_phase <- incldeFactorExist("Phase", data_filtered, TRUE) 
@@ -57,6 +63,12 @@ calculate_sleep_metrics <- function(data) {
 
 # Calculate sleep-related metrics
 total_sleep_info_per_change <- calculate_sleep_metrics(data_filtered)
+
+total_sleep_info_per_change <- if (analyzeSingleChange) {
+    total_sleep_info_per_change %>% filter(Change == changeToAnalyze)
+} else {
+    total_sleep_info_per_change
+}
 
 # Summarize the data to create an overview of sleep-activity for each individual
 summarize_data <- function(data) {
@@ -93,11 +105,13 @@ calculate_cv <- function(data) {
         ungroup()
 }
 
-# Calculate coefficient of variation
-cv_data <- calculate_cv(total_sleep_info_per_change)
-
-# Merge summarized data with coefficient of variation data
-overall_data <- merge(overall_data, cv_data, by = c("AnimalNum", "Batch", "Group", "Phase"))
+# Calculate coefficient of variation only if analyzing multiple changes
+if (!analyzeSingleChange) {
+    cv_data <- calculate_cv(total_sleep_info_per_change)
+    
+    # Merge summarized data with coefficient of variation data
+    overall_data <- merge(overall_data, cv_data, by = c("AnimalNum", "Batch", "Group", "Phase"))
+}
 
 ################################ Execute tests and generate plots ################################
 
