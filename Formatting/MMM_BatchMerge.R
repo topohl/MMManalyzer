@@ -20,6 +20,7 @@ setwd("S:/Lab_Member/Tobi/Experiments/Exp9_Social-Stress/Raw Data/Behavior/RFID/
 subfolders <- c("males/B1", "males/B2", "females/B3", "females/B4", "males/B5", "females/B6")
 
 file_pattern <- "E9_SIS_B\\d+_CC\\d_ActivityIndex.csv"
+#file_pattern <- "E9_SIS_B\\d+_EPMaftercagechange_ActivityIndex.csv"
 
 # function to read and process a single CSV file, it processes all .csv files in the selected destination folder
 process_file <- function(file_path) {
