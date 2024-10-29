@@ -3,7 +3,7 @@
 # Creates results text files in the defined folder
 
 # List of packages to check and load
-packages <- c("ggplot2", "dplyr", "tidyr", "gridExtra", "lme4", "lmerTest", "cowplot", "lsmeans", "emmeans", "Matrix", "tcltk")
+packages <- c("ggplot2", "dplyr", "tidyr", "gridExtra", "lme4", "lmerTest", "cowplot", "lsmeans", "emmeans", "Matrix", "tcltk", "openxlsx")
 
 # Check if each package is installed, install if not, and load it
 for (package in packages) {
@@ -16,42 +16,49 @@ for (package in packages) {
 # Define the folder to store the result files
 results_dir <- "C:/Users/topohl/Documents/test/"
 
-# Function to create a modern popup window for user input
+# Function to create popup window for user input
 get_user_input <- function() {
     # Create a top-level window
     tt <- tktoplevel()
     tkwm.title(tt, "Analysis Settings")
-    
-    # Add some padding to the window
-    tkconfigure(tt, padx = 60, pady = 10)
 
-    # Variables to store user input
-    includeChange_var <- tclVar(1)  # Default to TRUE
-    includeSex_var <- tclVar(1)     # Default to TRUE
-    includePhase_var <- tclVar(1)   # Default to TRUE
+    # Set the background color
+    tkconfigure(tt, bg = "#F7F9FC")  # Light background color
+
+    # Add some padding to the window
+    tkconfigure(tt, padx = 10, pady = 20)
+
+    # Initialize variables for user input
+    includeChange_var <- tclVar(0)  # Default to FALSE
+    includeSex_var <- tclVar(0)     # Default to FALSE
+    includePhase_var <- tclVar(0)   # Default to FALSE
 
     # Create a frame for better organization
-    frame <- tkframe(tt)
-    tkpack(frame)
+    frame <- tkframe(tt, bg = "#F7F9FC")  # Match frame background color
+    tkgrid(frame, padx = 10, pady = 10)  # Use grid for frame layout
+
+    tkgrid(tklabel(frame, text = "Set Inclusion", bg = "#F7F9FC", font = c("Helvetica", 14)), padx = 10, pady = 0)
+    tkgrid(tklabel(frame, text = "Parameters", bg = "#F7F9FC", font = c("Helvetica", 14)), padx = 5, pady = 5)
 
     # Create checkboxes for each setting with modern styling
-    tkgrid(tklabel(frame, text = "Include Change in analysis?"), padx = 5, pady = 5)
-    tkgrid(tkcheckbutton(frame, variable = includeChange_var), padx = 5, pady = 5)
+    tkgrid(tklabel(frame, text = "Change", bg = "#F7F9FC", font = c("Helvetica", 12)), tkcheckbutton(frame, variable = includeChange_var, bg = "#F7F9FC", activebackground = "#E1E6EA"), padx = 5, pady = 5)
 
-    tkgrid(tklabel(frame, text = "Include Sex in analysis?"), padx = 5, pady = 5)
-    tkgrid(tkcheckbutton(frame, variable = includeSex_var), padx = 5, pady = 5)
+    tkgrid(tklabel(frame, text = "Sex", bg = "#F7F9FC", font = c("Helvetica", 12)), tkcheckbutton(frame, variable = includeSex_var, bg = "#F7F9FC", activebackground = "#E1E6EA"), padx = 5, pady = 5)
 
-    tkgrid(tklabel(frame, text = "Include Phase in analysis?"), padx = 5, pady = 5)
-    tkgrid(tkcheckbutton(frame, variable = includePhase_var), padx = 5, pady = 5)
+    tkgrid(tklabel(frame, text = "Phase", bg = "#F7F9FC", font = c("Helvetica", 12)), tkcheckbutton(frame, variable = includePhase_var, bg = "#F7F9FC", activebackground = "#E1E6EA"), padx = 5, pady = 5)
 
     # Function to handle OK button click
     onOK <- function() {
         tkdestroy(tt)
     }
 
-    # Create OK button with improved styling
-    ok_button <- tkbutton(tt, text = "OK", command = onOK)
+    # Create an OK button with custom styling
+    ok_button <- tkbutton(tt, text = "OK", command = onOK, bg = "#007AFF", fg = "white", relief = "flat", font = c("Helvetica", 12))
     tkgrid(ok_button, padx = 10, pady = 10)
+
+    # Bind hover effects to the OK button
+    tkbind(ok_button, "<Enter>", function() tkconfigure(ok_button, bg = "#005A9E"))  # Darker blue on hover
+    tkbind(ok_button, "<Leave>", function() tkconfigure(ok_button, bg = "#0075CE"))  # Reset to original
 
     # Wait for the window to close
     tkwait.window(tt)
@@ -96,10 +103,10 @@ plot_list <- lapply(sort(unique(data_filtered_agg$Change)), function(Change) {
             data_filtered_agg_Change_subset_sex <- data_filtered_agg_Change_subset
         }
         
-        # Define a modern color palette
+        # Define a color palette for the groups
         color_palette <- c("#1e3791", "#8aacdb", "#f49620")
 
-        # Create the plot
+        # Create the line plot
         p <- ggplot(data_filtered_agg_Change_subset_sex, aes(x = HalfHourElapsed, y = ActivityIndex, group = Group, color = Group)) +
             geom_path(stat = "summary", fun = mean, linewidth = 0.8) +  # Adjust line thickness for visibility
             stat_summary(aes(fill = Group), fun = mean,
@@ -108,23 +115,23 @@ plot_list <- lapply(sort(unique(data_filtered_agg$Change)), function(Change) {
                          geom = "ribbon", 
                          alpha = 0.3, colour = NA) +  # Shaded area representing ±1 SD
             
-            # Use the defined color palette
+            # Adjust color palette for groups
             scale_color_manual(name = "Group", values = color_palette) + 
             scale_fill_manual(name = "Group", values = color_palette) +
             
-            # Adjust the x-axis
+            # Adjust axis labels and breaks
             scale_x_continuous(breaks = seq(0, max(data_filtered_agg_Change_subset_sex$HalfHourElapsed), by = 24), 
                                labels = seq(0, max(data_filtered_agg_Change_subset_sex$HalfHourElapsed), by = 24) / 2,
                                expand = c(0, 0)) +  # Remove padding on the x-axis
             scale_y_continuous(expand = c(0, 0)) +  # Remove padding on the y-axis
             
-            # Refined labels and captions
+            # Add labels and titles
             labs(title = "Circadian Activity Index",  # More concise title
                  subtitle = "Activity Levels Across Groups", 
                  y = "Activity [a.u.]", x = "Time Elapsed [h]", 
                  caption = "Shaded regions represent ±1 SD of the mean") +
             
-            # Modern theme adjustments
+            # Theme adjustments for clarity and aesthetics
             theme_minimal(base_size = 14) +  # Increase base font size for readability
             theme(
                 panel.grid.major = element_blank(),  # Remove major gridlines
@@ -217,65 +224,143 @@ changes <- if (includeChange) unique(data_filtered_agg$Change) else "allChanges"
 sexes <- if (includeSex) unique(data_filtered_agg$Sex) else "allSexes"
 phases <- if (includePhase) unique(data_filtered_agg$Phase) else "allPhases"
 
-# Prepare a data frame to store summary results
+# Prepare data frames to store summary results
 summary_results <- data.frame(
     Change = character(),
     Sex = character(),
     Phase = character(),
+    Fixed_effect = character(),
+    Estimate = numeric(),
+    Std.Error = numeric(),
+    df = numeric(),
+    t.value = numeric(),
     p.value = numeric(),
-    test.name = character(),
-    comparison = character(),
+    p.round = numeric(),
+    p.sign = character(),
     stringsAsFactors = FALSE
 )
+
+# Prepare data frame to store emmeans results
+emmeans_results <- data.frame(
+    Change = character(),
+    Sex = character(),
+    Phase = character(),
+    contrast = character(),
+    estimate = numeric(),
+    SE = numeric(),
+    df = numeric(),
+    t.ratio = numeric(),
+    p.value = numeric(),
+    p.adjust = numeric(),
+    p.round = numeric(),
+    stringsAsFactors = FALSE
+)
+
+# Initialize the progress bar
+total_iterations <- length(changes) * length(sexes) * length(phases)
+progress_bar <- tkProgressBar(title = "Model Fitting Progress", min = 0, max = total_iterations, width = 300)
+
+# Initialize a counter for progress tracking
+iteration_counter <- 0
 
 # Loop through each combination based on inclusion settings
 for (Change in changes) {
     for (Sex in sexes) {
         for (Phase in phases) {
+            # Increment the counter and update the progress bar
+            iteration_counter <- iteration_counter + 1
+            setTkProgressBar(progress_bar, iteration_counter, label = paste("Progress:", round(iteration_counter / total_iterations * 100, 2), "%"))
+            
             # Create a subset based on currently included factors
             data_subset <- data_filtered_agg %>%
                 filter((!includeChange | Change == !!Change),
                        (!includeSex | Sex == !!Sex),
                        (!includePhase | Phase == !!Phase))
-            
-            # Skip empty subsets
-            if (nrow(data_subset) == 0) next
-            
-            # Set options for pbkrtest
-            emm_options(pbkrtest.limit = 100000)   
 
-            # Fit the model
+            # Skip empty subsets
+            if (nrow(data_subset) == 0) {
+                cat("No data available for Change:", Change, "Sex:", Sex, "Phase:", Phase, "\n")
+                next
+            }
+
+            # Set options for pbkrtest
+            emm_options(pbkrtest.limit = 100000)
+
+            # Fit the lmer model
             model <- lmerTest::lmer(ActivityIndex ~ Group + HalfHourElapsed + (1 | AnimalNum), data = data_subset)
 
-            # Generate unique key
-            key <- paste(ifelse(includeChange, Change, "allChanges"),
-                         ifelse(includeSex, Sex, "allSexes"),
-                         ifelse(includePhase, Phase, "allPhases"), sep = "_")
+            # Get the fixed effects from the lmer model
+            model_summary <- summary(model)
+
+            # Extract fixed effects coefficients
+            fixed_effects <- data.frame(
+                Fixed_effect = rownames(model_summary$coefficients),
+                Estimate = model_summary$coefficients[, "Estimate"],
+                Std.Error = model_summary$coefficients[, "Std. Error"],
+                df = model_summary$coefficients[, "df"],
+                t.value = model_summary$coefficients[, "t value"],
+                p.value = model_summary$coefficients[, grep("Pr\\(>|t\\)", colnames(model_summary$coefficients))],
+                p.round = round(model_summary$coefficients[, grep("Pr\\(>|t\\)", colnames(model_summary$coefficients))], digits = 3),
+                p.sign = ifelse(model_summary$coefficients[, grep("Pr\\(>|t\\)", colnames(model_summary$coefficients))] < 0.001, "***",
+                         ifelse(model_summary$coefficients[, grep("Pr\\(>|t\\)", colnames(model_summary$coefficients))] < 0.01, "**",
+                         ifelse(model_summary$coefficients[, grep("Pr\\(>|t\\)", colnames(model_summary$coefficients))] < 0.05, "*",
+                         ifelse(model_summary$coefficients[, grep("Pr\\(>|t\\)", colnames(model_summary$coefficients))] < 0.1, "T", "ns")))),
+                Change = Change,
+                Phase = Phase,
+                Sex = Sex,
+                stringsAsFactors = FALSE
+            )
+
+            # Append each fixed effect to summary_results
+            summary_results <- dplyr::bind_rows(summary_results, fixed_effects)
+
+            # Conduct post-hoc tests and extract EMMs with specified adjustment
+            posthoc <- emmeans::emmeans(model, pairwise ~ Group)
+            posthoc_summary <- summary(posthoc, infer = TRUE, adjust = "holm")
+
+            # Extract contrasts and append to emmeans_results data frame
+            posthoc_df <- as.data.frame(posthoc_summary$contrasts)
+            posthoc_df$Change <- Change
+            posthoc_df$Phase <- Phase
+            posthoc_df$Sex <- Sex
+
+            # Filter for valid contrasts and p-values
+            posthoc_df <- posthoc_df[!is.na(posthoc_df$p.value), ]
+
+            # Adjust p-values using Holm method
+            posthoc_df$p.adjust <- p.adjust(posthoc_df$p.value, method = "holm")
+
+            # Append valid post-hoc results to emmeans_results
+            if (nrow(posthoc_df) > 0) {
+                emmeans_results <- dplyr::bind_rows(emmeans_results, posthoc_df)
+            }
             
-            # Store and save results
-            results_list[[key]] <- summary(model)
-            write.csv(summary(model)$coefficients, file = paste0(results_dir, "results_", key, ".csv"))
-            
-            # Calculate estimated marginal means
-            emmeans_results <- emmeans(model, ~ Group | HalfHourElapsed)
-            
-            # Perform pairwise comparisons
-            comparisons <- pairs(emmeans_results)
-            
-            # Extract results and store in summary_results
-            comparison_summary <- summary(comparisons)
-            comparison_summary$Change <- Change
-            comparison_summary$Sex <- Sex
-            comparison_summary$Phase <- Phase
-            
-            # Append to the summary_results data frame
-            summary_results <- rbind(summary_results, comparison_summary[, c("Change", "Sex", "Phase", "p.value", "contrast", "adjust", "name")])
         }
     }
 }
 
-# Save the summary results to a CSV file
-write.csv(summary_results, file = paste0(results_dir, "emmeans_summary_results.csv"), row.names = FALSE)
+# Close the progress bar
+close(progress_bar)
 
-# Save the plot and heatmap lists to CSV files if needed
-# Done!
+# Save the summary results and emmeans results to separate .xlsx files
+write.xlsx(summary_results, file = paste0(results_dir, "lme_summary_results", 
+                                         ifelse(includeChange, "_change", ""), 
+                                         ifelse(includeSex, "_sex", ""), 
+                                         ifelse(includePhase, "_phase", ""), 
+                                         ".xlsx"), row.names = FALSE)
+cat("Summary results saved to:", paste0(results_dir, "lme_summary_results", 
+                                        ifelse(includeChange, "_change", ""), 
+                                        ifelse(includeSex, "_sex", ""), 
+                                        ifelse(includePhase, "_phase", ""), 
+                                        ".xlsx"), "\n")
+
+write.xlsx(emmeans_results, file = paste0(results_dir, "emmeans_results", 
+                                         ifelse(includeChange, "_change", ""), 
+                                         ifelse(includeSex, "_sex", ""), 
+                                         ifelse(includePhase, "_phase", ""), 
+                                         ".xlsx"), row.names = FALSE)
+cat("EMMeans results saved to:", paste0(results_dir, "emmeans_results", 
+                                        ifelse(includeChange, "_change", ""), 
+                                        ifelse(includeSex, "_sex", ""), 
+                                        ifelse(includePhase, "_phase", ""), 
+                                        ".xlsx"), "\n")
