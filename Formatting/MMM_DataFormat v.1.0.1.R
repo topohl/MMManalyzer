@@ -16,6 +16,7 @@ for (package in required_packages) {
 # remove the last two active and inactive phases? (Grid in cage)
 gridInCage <- TRUE
 analyseGridInCage <- FALSE
+analyseCookie <- FALSE
 
 # set the working directory to the parent directory containing the subfolders
 setwd("S:/Lab_Member/Tobi/Experiments/Exp9_Social-Stress/Raw Data/Behavior/RFID/BatchAnalysis/males/")
