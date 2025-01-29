@@ -1,13 +1,31 @@
-## merge files from different batches
-### Read in data from Folders and xlsx data. The data is organized in subfolders. 
-#  This will read in the data of different xlsx sheets and merge them based on the name of the folder. 
-#  Also, the data will be sorted and formatted
-#  Later, the data points will be plotted.
+#' Merge and Process CSV Files from Different Experimental Batches
+#'
+#' Author: Tobias Pohl
+#' Date: 2025-01-29
+#' 
+#' @description
+#' This script reads, processes, and merges CSV files from different experimental batches.
+#' It extracts relevant metadata (e.g., batch number, change number) from filenames,
+#' reformats the data, and saves the processed results as Excel (.xlsx) files.
+#' 
+#' The processed data is then combined into a single data frame for further analysis.
+#'
+#' @section Dependencies:
+#' The script requires the following R packages: `readxl`, `dplyr`, `purrr`, `stringr`, `lubridate`, `readr`, `openxlsx`.
+#' If these packages are not installed, they will be installed automatically.
+#'
+#' @section Input:
+#' - CSV files stored in subfolders corresponding to different experimental batches.
+#' - Filenames contain metadata regarding batch and condition (e.g., "B1", "CC1").
+#'
+#' @section Output:
+#' - Processed and reformatted data saved as .xlsx files.
+#' - A combined data frame (`combined_data`) containing merged results from all batches.
 
-# List of packages to check and load
+# List of required packages
 packages <- c("readxl", "dplyr", "purrr", "stringr", "lubridate", "readr", "openxlsx")
 
-# Check if each package is installed, install if not, and load it
+# Install missing packages and load them
 for (package in packages) {
     if (!requireNamespace(package, quietly = TRUE)) {
         install.packages(package, dependencies = TRUE)
@@ -15,14 +33,20 @@ for (package in packages) {
     library(package, character.only = TRUE)
 }
 
-# set the working directory to the parent directory containing the subfolders and get a list of the B1 and B2 subfolders in the directory
+# Set working directory (adjust path accordingly)
 setwd("S:/Lab_Member/Tobi/Experiments/Exp9_Social-Stress/Raw Data/Behavior/RFID/BatchAnalysis/")
+
+# Define the subfolders containing batch data
 subfolders <- c("males/B1", "males/B2", "females/B3", "females/B4", "males/B5", "females/B6")
 
+# Define the file naming pattern to filter relevant CSV files
 file_pattern <- "E9_SIS_B\\d+_CC\\d_ActivityIndex.csv"
 #file_pattern <- "E9_SIS_B\\d+_EPMaftercagechange_ActivityIndex.csv"
 
-# function to read and process a single CSV file, it processes all .csv files in the selected destination folder
+#' Process a single CSV file by reading, extracting metadata, and reformatting it.
+#'
+#' @param file_path Character. Path to the CSV file.
+#' @return A tibble containing the processed data with additional metadata columns.
 process_file <- function(file_path) {
     cat(paste0("Processing ", file_path, "\n"))  # print file path
     read.csv(file_path, sep = ";") %>%     # read the csv file with semicolon delimiter
@@ -32,7 +56,10 @@ process_file <- function(file_path) {
         select(-filename) # remove the filename column
 }
 
-# function to process and save as XLSX file
+#' Convert a CSV file to XLSX format after processing.
+#'
+#' @param file_path Character. Path to the CSV file.
+#' @return Saves an XLSX file in the same directory as the original CSV.
 process_and_save_xlsx <- function(file_path) {
     file_base <- sub(".csv", "", basename(file_path))
     output_path <- paste0(dirname(file_path), "/", file_base, ".xlsx")
@@ -47,23 +74,23 @@ process_and_save_xlsx <- function(file_path) {
 #                    pattern = ".csv$", recursive = TRUE, full.names = TRUE)
 #purrr::walk(files, process_and_save_xlsx)
 
-# read all CSV files in the B1 and B2 subfolders, convert them to xlsx, and combine them into a single data frame
+#' Read and merge CSV files from subfolders into a single data frame.
+#'
+#' @return A tibble containing the combined dataset from all batches.
 data <- map_dfr(subfolders, ~{
-    # get a list of subfolders in the current B1 or B2 folder
+    # Get a list of subfolders for each batch
     subfolder_paths <- list.dirs(paste0(".", "/", .x), recursive = FALSE)
     
-    # get files matching the pattern for Batch 1 and Batch 2
+    # Retrieve all matching CSV files from subfolders
     all_files <- map(subfolder_paths, ~list.files(path = .x, pattern = file_pattern, full.names = TRUE)) %>% 
         flatten()
     
-    # process all files and combine into a single data frame
+    # Process all files and merge into a single data frame
     all_data <- map(all_files, ~process_file(.x)) %>% 
         bind_rows()
     
     all_data
 })
 
-# combine all data frames into a single data frame
+# Combine all data frames into a single merged data set
 combined_data <- bind_rows(data)
-
-
