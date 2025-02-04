@@ -1,13 +1,13 @@
 # MMManalyzer
 
-MMManalyzer is a data processing and analysis tool for RFID data collected from rodents, such as mice, using the MultiMouseMonitor (MMM) system by Phenosys. This toolset assists researchers in formatting data from MMM and conducting insightful analysis.
+MMManalyzer is an analysis and data processing tool for RFID-based tracking data of rodents, specifically designed for the MultiMouseMonitor (MMM) system by Phenosys. It enables efficient formatting and analysis of MMM data, particularly regarding behavioral patterns such as locomotion, sleep, and general activity.
 
 ## Table of Contents
 
 - [Introduction](#introduction)
-- [Data Formatting and Analysis](#data-formatting-and-analysis)
-  - [Features](#features)
-- [Analysis Features](#analysis-features)
+- [Key Features](#key-features)
+  - [Data Formatting](#data-formatting)
+  - [Analysis Functions](#analysis-functions)
 - [Getting Started](#getting-started)
   - [Prerequisites](#prerequisites)
   - [Installation](#installation)
@@ -18,38 +18,38 @@ MMManalyzer is a data processing and analysis tool for RFID data collected from 
 
 ## Introduction
 
-The MultiMouseMonitor (MMM) is a state-of-the-art system designed for tracking rodents through RFID technology. MMManalyzer serves as a valuable complement by providing tools for data processing and analysis.
+The MultiMouseMonitor (MMM) system utilizes RFID technology to continuously track rodents housed in groups, allowing for long-term behavioral studies. MMManalyzer simplifies data processing and provides analytical tools to extract relevant information such as locomotion patterns and sleep behavior under different experimental conditions.
 
-## Data Formatting and Analysis
+## Key Features
 
-MMManalyzer is equipped with features for batch processing data. This includes formatting data based on phases (active and inactive) according to the time of day, grouping and filtering of animals, and cropping of data based on time.
+### Data Formatting
 
-### Features
+MMManalyzer provides automated tools for cleaning and structuring MMM data in preparation for analysis. Key features include:
 
-- **Data Formatting**: Format data based on active and inactive phases and other criteria.
-- **Grouping and Filtering**: Group and filter animals for targeted analysis.
-- **Time Cropping**: Crop data based on specific time intervals.
+- **Phase-Based Segmentation:** Automatic division of data into active and inactive phases based on circadian rhythm.
+- **Grouping and Filtering:** Sorting data by experimental groups (e.g., control vs. stress group, sex differences).
+- **Time-Based Selection:** Extraction of relevant time windows for targeted analyses.
 
-## Analysis Features
+### Analysis Functions
 
-The Analysis component of MMManalyzer offers a range of features for insightful data analysis. These features include:
+MMManalyzer offers analytical tools for interpreting RFID tracking data:
 
-- **Activity Plotting**: Visualize the activity of groups of mice.
-- **Sleep Analysis**: Perform in-depth sleep analysis.
-- **Activity Comparison**: Compare activity between different groups using linear mixed-effects models (lme).
+- **Activity Visualization:** Generate plots to illustrate movement patterns and group activity.
+- **Sleep Analysis:** Estimate sleep-wake cycles based on movement and RFID detection data.
+- **Comparative Behavioral Analysis:** Perform statistical comparisons of locomotion and sleep parameters between experimental groups using linear mixed-effects models (*lme*), accounting for repeated measurements and individual variability.
 
 ## Getting Started
 
 ### Prerequisites
 
-Before using MMManalyzer, ensure that you have the following software and tools installed:
+Before using MMManalyzer, ensure that you have the following installed:
 
 - [R](https://cran.r-project.org/) and [RStudio](https://posit.co/download/rstudio-desktop/)
-- A spreadsheet software of your choice (e.g., Microsoft Excel, Google Sheets)
+- Spreadsheet software of your choice (e.g., Microsoft Excel, Google Sheets)
 
 ### Installation
 
-1. **Clone the Repository:**
+1. **Clone the repository:**
 
    ```bash
    git clone https://github.com/topohl/MMManalyzer.git
