@@ -58,14 +58,15 @@ Before using MMManalyzer, ensure that you have the following installed:
 
 To utilize MMManalyzer:
 
-- **Data Formatting**: Use the tools in the `Formatting` folder to format raw data from MMM.
-- **Data Analysis**: Employ the provided scripts and sheets in the `Analysis` folder for detailed data analysis.
+- **Data Formatting**: Use the scripts in the `Formatting` folder to clean and structure raw MMM data.
+- **Data Analysis**: Apply the analysis scripts in the `Analysis` folder to process and visualize behavioral data.
+- **Statistical Analysis**: Utilize mixed-effects models to investigate behavioral differences between groups
 
 ## Folder Structure
 
-- `Analysis`: Contains analysis scripts and sheets for interpreting MMM data.
-- `Formatting`: Tools for formatting data collected from the MMM system.
-- `Testing` (Experimental): Includes experimental code.
+- `Analysis/`: Scripts and tools for analyzing MMM data.
+- `Formatting/`: Programs for cleaning and structuring raw data.
+- `Testing/` (experimental): Contains test scripts and experimental functions.
 ## Contributing
 
 We encourage contributions to MMManalyzer. If you wish to contribute, please follow our Contribution Guidelines.
