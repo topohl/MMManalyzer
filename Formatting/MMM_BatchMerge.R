@@ -1,7 +1,7 @@
 #' Merge and Process CSV Files from Different Experimental Batches
 #'
-#' Author: Tobias Pohl
-#' Date: 2025-01-29
+#' @Author Tobias Pohl
+#' @Date 2025-01-29
 #' 
 #' @description
 #' This script reads, processes, and merges CSV files from different experimental batches.
@@ -22,6 +22,10 @@
 #' - Processed and reformatted data saved as .xlsx files.
 #' - A combined data frame (`combined_data`) containing merged results from all batches.
 
+# ================================================
+# Dependencies
+# ================================================
+
 # List of required packages
 packages <- c("readxl", "dplyr", "purrr", "stringr", "lubridate", "readr", "openxlsx")
 
@@ -33,6 +37,10 @@ for (package in packages) {
     library(package, character.only = TRUE)
 }
 
+# ================================================
+# Input Parameters
+# ================================================
+
 # Set working directory (adjust path accordingly)
 setwd("S:/Lab_Member/Tobi/Experiments/Exp9_Social-Stress/Raw Data/Behavior/RFID/BatchAnalysis/")
 
@@ -43,10 +51,15 @@ subfolders <- c("males/B1", "males/B2", "females/B3", "females/B4", "males/B5", 
 file_pattern <- "E9_SIS_B\\d+_CC\\d_ActivityIndex.csv"
 #file_pattern <- "E9_SIS_B\\d+_EPMaftercagechange_ActivityIndex.csv"
 
-#' Process a single CSV file by reading, extracting metadata, and reformatting it.
-#'
+# ================================================
+# Functions for processing and merging CSV files
+# ================================================
+
+#' @title process_file
+#' @description Process a CSV file by reading, transforming, and adding metadata columns.
 #' @param file_path Character. Path to the CSV file.
 #' @return A tibble containing the processed data with additional metadata columns.
+
 process_file <- function(file_path) {
     cat(paste0("Processing ", file_path, "\n"))  # print file path
     read.csv(file_path, sep = ";") %>%     # read the csv file with semicolon delimiter
@@ -56,10 +69,11 @@ process_file <- function(file_path) {
         select(-filename) # remove the filename column
 }
 
-#' Convert a CSV file to XLSX format after processing.
-#'
+#' @title process_and_save_xlsx
+#' @description Process a CSV file and save the results as an XLSX file.
 #' @param file_path Character. Path to the CSV file.
 #' @return Saves an XLSX file in the same directory as the original CSV.
+
 process_and_save_xlsx <- function(file_path) {
     file_base <- sub(".csv", "", basename(file_path))
     output_path <- paste0(dirname(file_path), "/", file_base, ".xlsx")
@@ -74,9 +88,18 @@ process_and_save_xlsx <- function(file_path) {
 #                    pattern = ".csv$", recursive = TRUE, full.names = TRUE)
 #purrr::walk(files, process_and_save_xlsx)
 
-#' Read and merge CSV files from subfolders into a single data frame.
-#'
+# ================================================
+# Read and merge CSV files from subfolders
+# ================================================
+#' @description Read and merge CSV files from subfolders into a single data frame.
+#' 
+#' @details This function reads all CSV files from the specified subfolders, processes them,
+#' and combines the results into a single data frame.
+#' 
+#' @param subfolders Character vector. Paths to subfolders containing CSV files.
+#' @param file_pattern Character. Regular expression pattern to match relevant CSV files.
 #' @return A tibble containing the combined dataset from all batches.
+
 data <- map_dfr(subfolders, ~{
     # Get a list of subfolders for each batch
     subfolder_paths <- list.dirs(paste0(".", "/", .x), recursive = FALSE)
