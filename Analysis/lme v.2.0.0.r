@@ -14,7 +14,10 @@ for (package in packages) {
 }
 
 # Define the folder to store the result files
-results_dir <- "C:/Users/topohl/Documents/test/"
+if (!dir.exists("C:/Users/topohl/Documents/LMETEST/")) {
+    dir.create("C:/Users/topohl/Documents/LMETEST/", recursive = TRUE)
+}
+results_dir <- "C:/Users/topohl/Documents/LMETEST/"
 
 # Function to create popup window for user input
 get_user_input <- function() {
@@ -149,11 +152,11 @@ plot_list <- lapply(sort(unique(data_filtered_agg$Change)), function(Change) {
         # Save each plot as an SVG file with the Sex in the filename
         save_file <- paste0(results_dir, "line_plot_", Change, "_", SexValue, ".svg")
         ggsave(filename = save_file, plot = p, device = "svg", width = 7, height = 4)
-        
+
         # Add the plot to the list
         plot_list_sex[[SexValue]] <- p
     }
-    
+
     # Return the list of plots for each Sex
     return(plot_list_sex)
 })
@@ -162,10 +165,10 @@ plot_list <- lapply(sort(unique(data_filtered_agg$Change)), function(Change) {
 heatmap_list <- lapply(sort(unique(data_filtered_agg$Change)), function(Change) {
     # Subset data for the current CC
     data_filtered_agg_Change_subset <- data_filtered_agg_Change[[Change]]
-    
+
     # Create an empty list to store heatmaps for each Sex
     heatmap_list_sex <- list()
-    
+
     # Loop through each Sex
     for (SexValue in c("m", "f")) {
         # Filter data by Sex if includeSex is TRUE
@@ -175,7 +178,7 @@ heatmap_list <- lapply(sort(unique(data_filtered_agg$Change)), function(Change) 
         } else {
             data_filtered_agg_Change_subset_sex <- data_filtered_agg_Change_subset
         }
-        
+
         # Reorder levels of Group factor
         data_filtered_agg_Change_subset_sex <- data_filtered_agg_Change_subset_sex %>% 
             mutate(Group = factor(Group, levels = c("CON", "RES", "SUS")))
@@ -364,3 +367,85 @@ cat("EMMeans results saved to:", paste0(results_dir, "emmeans_results",
                                         ifelse(includeSex, "_sex", ""), 
                                         ifelse(includePhase, "_phase", ""), 
                                         ".xlsx"), "\n")
+
+
+
+# -------------------------------------------------
+# Plot fixed effects with error bars RUN SEPARATELY
+# -------------------------------------------------
+
+# Load results file from results_dir
+data <- read.xlsx("C:/Users/topohl/Documents/LMETEST/lme_summary_results_sex_phase.xlsx")
+
+# Clean factors for better plotting
+data <- data %>%
+  mutate(
+    Fixed_effect = factor(Fixed_effect, levels = unique(Fixed_effect)),
+    Sex = factor(Sex, levels = c("m", "f"), labels = c("m", "f")),
+    Phase = factor(Phase, levels = c("Active", "Inactive")),
+    effect_type = ifelse(Fixed_effect == "(Intercept)",
+                         "Intercept (Control)",
+                         "Other Effect")
+  )
+
+# Create separate plots for each Sex and Phase
+unique_sex <- unique(data$Sex)
+unique_phase <- unique(data$Phase)
+
+for (s in unique_sex) {
+    for (p in unique_phase) {
+        plot_data <- data %>%
+            filter(Sex == s, Phase == p) %>%
+            filter(Fixed_effect != "HalfHourElapsed")  # Drop HalfHourElapsed fixed effect
+
+        # Pull intercept value correctly for this Sex and Phase
+        int_val <- data %>%
+            filter(Fixed_effect == "(Intercept)", Sex == s, Phase == p) %>%
+            pull(Estimate)
+
+        plot_data <- plot_data %>%
+            mutate(Adjusted_Estimate = case_when(
+                Fixed_effect == "(Intercept)" ~ Estimate,
+                grepl("Group", Fixed_effect) ~ int_val + Estimate,
+                TRUE ~ Estimate  # other effects
+            ))
+
+        # Define the custom color palette
+        color_palette <- c("(Intercept)" = "#1e3791",
+                           "GroupRES" = "#8aacdb",
+                           "GroupSUS" = "#f49620")
+
+        # Create the fixed effects plot with a modern look
+        p_fixed <- ggplot(plot_data, aes(x = Fixed_effect, y = Adjusted_Estimate, fill = Fixed_effect)) +
+            geom_bar(stat = "identity", position = position_dodge(width = 0.7), width = 0.6, color = NA) +
+            geom_errorbar(aes(ymin = Adjusted_Estimate - Std.Error, ymax = Adjusted_Estimate + Std.Error),
+                          position = position_dodge(width = 0.7), width = 0.2, color = "grey40") +
+            geom_text(aes(label = p.sign), position = position_dodge(width = 0.7),
+                      vjust = -0.8, size = 5, color = "grey20") +
+            scale_fill_manual(values = color_palette) +
+            labs(
+                title = paste("Fixed Effects for", s, "(", p, "Phase)"),
+                x = "Fixed Effect",
+                y = "Adjusted Estimate ± SE",
+                fill = "Effect Type"
+            ) +
+            theme_minimal(base_size = 14) +
+            theme(
+                text = element_text(family = "sans"),
+                axis.text.x = element_text(angle = 45, hjust = 1, color = "grey20"),
+                axis.text.y = element_text(color = "grey20"),
+                axis.title = element_text(face = "bold", color = "grey20"),
+                plot.title = element_text(face = "bold", size = 16, hjust = 0.5, color = "grey10"),
+                plot.subtitle = element_text(size = 12, hjust = 0.5, color = "grey30"),
+                legend.position = "none",
+                panel.grid.major = element_line(color = "grey85", size = 0.3),
+                panel.grid.minor = element_blank(),
+                panel.border = element_blank(),
+                plot.background = element_rect(fill = "white", color = NA)
+            )
+
+        # Save each plot as an SVG file with unique names
+        save_file <- paste0(results_dir, "fixed_effects_plot_", s, "_", p, ".svg")
+        ggsave(filename = save_file, plot = p_fixed, device = "svg", width = 4, height = 5)
+    }
+}
