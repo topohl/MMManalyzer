@@ -166,7 +166,6 @@ performTwoWayAnovaPosthoc <- function(data, variableName) {
   return(pairwiseResults)
 }
 
-
 # Function to perform post hoc pairwise tests for Kruskal-Wallis
 performPosthocKruskal <- function(data, variableName) {
   kruskalTest <- kruskal.test(as.formula(paste(variableName, "~ Group")), data = data)
@@ -176,8 +175,14 @@ performPosthocKruskal <- function(data, variableName) {
   return(pairwiseResults)
 }
 
-# non parametric
-# Function to perform Wilcoxon rank-sum test
+#' Non-parametric: Wilcoxon rank-sum (Mann–Whitney U)
+#'
+#' Compares two independent groups when normality cannot be assumed.
+#' Uses stats::wilcox.test with default (unpaired) settings.
+#'
+#' @param dataGroup1 Numeric vector of observations for group 1.
+#' @param dataGroup2 Numeric vector of observations for group 2.
+#' @return An htest object from wilcox.test, or NULL if either group has fewer than 3 non-NA values.
 performWilcoxonTest <- function(dataGroup1, dataGroup2) {
   if (length(dataGroup1) >= 3 && length(dataGroup2) >= 3) {
     return(wilcox.test(dataGroup1, dataGroup2))
@@ -199,12 +204,12 @@ testAndPlotVariable <- function(data, variableName, phase, sex) {
     cat("Error: variableName", variableName, "is not numeric.\n", append = TRUE)
     return(NULL)
   }
-  
-  #filtering specific phase or sex if needed 
+
+  # Filtering specific phase or sex if needed
   filteredData <- data %>%
     filter(if(include_phase) Phase == phase else TRUE) %>%   # Include/exclude "Phase" based on the variable
     filter(if(include_sex) Sex == sex else TRUE)            # Include/exclude "Sex" based on the variable
- # Check if there is data remaining after filtering
+  # Check if there is data remaining after filtering
   if (nrow(filteredData) == 0) {
     cat("Error: No data remaining after filtering.\n", append = TRUE)
     return(NULL)
@@ -224,13 +229,13 @@ testAndPlotVariable <- function(data, variableName, phase, sex) {
 
   # print number of groups
   cat(paste0("Number of groups: ", numGroups, "\n"))
-  
+
   # print the number of observations of each group
   cat(paste0("Number of observations in ", uniqueGroups[1], ": ", nGroup1, "\n"))
   cat(paste0("Number of observations in ", uniqueGroups[2], ": ", nGroup2, "\n"))
   cat(paste0("Number of observations in ", uniqueGroups[3], ": ", nGroup3, "\n"))
 
-# Debugging information
+  # Debugging information
   cat("Unique groups:", paste(uniqueGroups, collapse = ", "), "\n")
   cat("Number of groups:", numGroups, "\n")
   for (group in uniqueGroups) {
@@ -244,15 +249,16 @@ testAndPlotVariable <- function(data, variableName, phase, sex) {
     if (numGroups == 2) {
       group1 <- uniqueGroups[1]
       group2 <- uniqueGroups[2]
-      
+
       dataGroup1 <- filteredData[[variableName]][filteredData$Group == group1]
       dataGroup2 <- filteredData[[variableName]][filteredData$Group == group2]
-      
-      # if there are more than 3 columns containing the name of group1 AND group 2 , perform Wilcoxon test
+
+      # if there are more than 3 columns containing the name of
+      # group1 AND group 2, perform Wilcoxon test
       # WILCOXON
       if (sum(!is.na(dataGroup1)) >= 3 && sum(!is.na(dataGroup2)) >= 3) {
         wilcoxRes <- performWilcoxonTest(dataGroup1, dataGroup2)
-        
+
         #if results of Wilcoxontest are not empty add results to testResults
         if (!is.null(wilcoxRes)) {
           testResults <- list(
@@ -266,99 +272,97 @@ testAndPlotVariable <- function(data, variableName, phase, sex) {
             P_Value = wilcoxRes$p.value,
             Significance_Level = sprintf("%.3f", wilcoxRes$p.value)
           )
-          
-          #generate plot of wilcoxontest results
+
+          # Generate plot of Wilcoxon test results
           p <- generatePlot(filteredData, variableName, phase, sex)
-          
+
           return(list(testResults = testResults, plot = p, posthocResults = NULL))
         }
       }
     } else {  # numGroups /= 2
 
-        # initialize empty dataframes for ANOVA
-        testResultsDf <- data.frame()
-        posthocResultsDf <- data.frame()
-     
-        ## NORMALITY TEST
-        # perform Shapiro-Wilk Normality Test for each group
-        conNorm <- shapiro.test(filteredData[[variableName]][filteredData$Group == "CON"])
-        resNorm <- shapiro.test(filteredData[[variableName]][filteredData$Group == "RES"])
+      # initialize empty dataframes for ANOVA
+      testResultsDf <- data.frame()
+      posthocResultsDf <- data.frame()
 
-        # check if SUS group exists and perform Shapiro-Wilk Normality Test if it does
-        susGroupExists <- any(filteredData$Group == "SUS")
-            if (susGroupExists) {
-                susNorm <- shapiro.test(filteredData[[variableName]][filteredData$Group == "SUS"])
-            } else {
-                susNorm <- list(p.value = 1)
-            }
-            # if one of the p values of the Normality Testing is empty, return NULL
-            if (is.na(conNorm$p.value) || is.na(resNorm$p.value) || is.na(susNorm$p.value)) {
-                return(NULL)
-            }
+      ## NORMALITY TEST
+      # perform Shapiro-Wilk Normality Test for each group
+      conNorm <- shapiro.test(filteredData[[variableName]][filteredData$Group == "CON"])
+      resNorm <- shapiro.test(filteredData[[variableName]][filteredData$Group == "RES"])
 
-            # register Normality Test results in testResults for return
-            testResults <- list(
-                Variable = variableName,
-                Phase = phase,
-                Sex = sex,
-                CON_Normality = conNorm$p.value,
-                RES_Normality = resNorm$p.value,
-                SUS_Normality = susNorm$p.value
-            )
-
-            ## ANOVA
-            if (numGroups > 2) {
-                # every p value has to be not significant (>=0.05)
-                if (conNorm$p.value >= 0.05 && resNorm$p.value >= 0.05 && susNorm$p.value >= 0.05) {
-                    anovaTest <- aov(as.formula(paste(variableName, "~ Group")), data = filteredData)
-                    testResults$Test <- "ANOVA"
-                    testResults$P_Value <- summary(anovaTest)[[1]][["Pr(>F)"]][1]
-                    testResults$Significance_Level <- sprintf("%.3f", testResults$P_Value)
-                    # posthoc for ANOVA
-                    posthocResultsDf <- performPosthocAnova(filteredData, variableName)
-                } else { # Kruskal Wallis
-                    kruskalTest <- kruskal.test(as.formula(paste(variableName, "~ Group")), data = filteredData)
-                    testResults$Test <- "Kruskal-Wallis"
-                    testResults$P_Value <- kruskalTest$p.value
-                    testResults$Significance_Level <- sprintf("%.3f", p.adjust(testResults$P_Value, method = "BH"))
-
-                    posthocResultsDf <- performPosthocKruskal(filteredData, variableName)
-                }
-
-                #if (twoWayANOVA == TRUE) {
-                #    twoWayAnovaTest <- performTwoWayAnova(filteredData, variableName)
-                #    testResultsTwoWay <- list(
-                #        Variable = variableName,
-                #        Phase = phase,
-                #        Sex = sex,
-                #        Test = "Two-way ANOVA",
-                #        P_Value = twoWayAnovaTest$p.value,
-                #        Significance_Level = sprintf("%.3f", p.adjust(twoWayAnovaTest$p.value, method = "BH"))
-                #    )
-                #    # posthoc for two way ANOVA
-                #    posthocResultsTwoWay <- performTwoWayAnova(filteredData, variableName)
-                #}
-                
-                if (!is.null(posthocResultsDf) && ncol(posthocResultsDf) > 0) {
-                    if (identical(names(testResultsDf), names(posthocResultsDf))) {
-                        testResultsDf <- bind_rows(testResultsDf, posthocResultsDf)
-                    } else {
-                        testResultsDf <- plyr::rbind.fill(testResultsDf, posthocResultsDf)
-                    }
-                }
-                
-                
-            }
-
-        # generate plots in p for return
-        p <- generatePlot(filteredData, variableName, phase, sex)
-
-        return(list(testResults = testResults, plot = p, posthocResults = testResultsDf))
-    }
-    } else {
-        cat("Variable", variableName, "is not numeric and will be skipped.\n")
+      # check if SUS group exists and perform Shapiro-Wilk Normality Test if it does
+      susGroupExists <- any(filteredData$Group == "SUS")
+      if (susGroupExists) {
+        susNorm <- shapiro.test(filteredData[[variableName]][filteredData$Group == "SUS"])
+      } else {
+        susNorm <- list(p.value = 1)
+      }
+      # if one of the p values of the Normality Testing is empty, return NULL
+      if (is.na(conNorm$p.value) || is.na(resNorm$p.value) || is.na(susNorm$p.value)) {
         return(NULL)
+      }
+
+      # register Normality Test results in testResults for return
+      testResults <- list(
+        Variable = variableName,
+        Phase = phase,
+        Sex = sex,
+        CON_Normality = conNorm$p.value,
+        RES_Normality = resNorm$p.value,
+        SUS_Normality = susNorm$p.value
+      )
+
+      ## ANOVA
+      if (numGroups > 2) {
+        # every p value has to be not significant (>=0.05)
+        if (conNorm$p.value >= 0.05 && resNorm$p.value >= 0.05 && susNorm$p.value >= 0.05) {
+          anovaTest <- aov(as.formula(paste(variableName, "~ Group")), data = filteredData)
+          testResults$Test <- "ANOVA"
+          testResults$P_Value <- summary(anovaTest)[[1]][["Pr(>F)"]][1]
+          testResults$Significance_Level <- sprintf("%.3f", testResults$P_Value)
+          # posthoc for ANOVA
+          posthocResultsDf <- performPosthocAnova(filteredData, variableName)
+        } else { # Kruskal Wallis
+          kruskalTest <- kruskal.test(as.formula(paste(variableName, "~ Group")), data = filteredData)
+          testResults$Test <- "Kruskal-Wallis"
+          testResults$P_Value <- kruskalTest$p.value
+          testResults$Significance_Level <- sprintf("%.3f", p.adjust(testResults$P_Value, method = "BH"))
+
+          posthocResultsDf <- performPosthocKruskal(filteredData, variableName)
+        }
+
+        #if (twoWayANOVA == TRUE) {
+        # twoWayAnovaTest <- performTwoWayAnova(filteredData, variableName)
+        # testResultsTwoWay <- list(
+        # Variable = variableName,
+        # Phase = phase,
+        # Sex = sex,
+        # Test = "Two-way ANOVA",
+        # P_Value = twoWayAnovaTest$p.value,
+        # Significance_Level = sprintf("%.3f", p.adjust(twoWayAnovaTest$p.value, method = "BH"))
+        # )
+        # posthoc for two way ANOVA
+        # posthocResultsTwoWay <- performTwoWayAnova(filteredData, variableName)
+        # }
+
+        if (!is.null(posthocResultsDf) && ncol(posthocResultsDf) > 0) {
+          if (identical(names(testResultsDf), names(posthocResultsDf))) {
+            testResultsDf <- bind_rows(testResultsDf, posthocResultsDf)
+          } else {
+            testResultsDf <- plyr::rbind.fill(testResultsDf, posthocResultsDf)
+          }
+        }
+      }
+
+      # generate plots in p for return
+      p <- generatePlot(filteredData, variableName, phase, sex)
+
+      return(list(testResults = testResults, plot = p, posthocResults = testResultsDf))
     }
+  } else {
+    cat("Variable", variableName, "is not numeric and will be skipped.\n")
+    return(NULL)
+  }
 }
 
 
