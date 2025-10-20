@@ -161,7 +161,6 @@ performTwoWayAnovaPosthoc <- function(data, variableName) {
 
   # Remove duplicate comparisons
   pairwiseResults <- pairwiseResults[!duplicated(pairwiseResults[, c("group1", "group2")]), ]
-  
   pairwiseResults$GroupComparison <- paste(pairwiseResults$group1, "vs.", pairwiseResults$group2)
   return(pairwiseResults)
 }
