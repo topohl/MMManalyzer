@@ -390,3 +390,26 @@ savePlotsInDir <- function(allTestResults, allPlots, target_directory, fileType)
     
   }
 }
+
+# Function to create a simple GUI to get user input for analysis settings
+get_user_input <- function() {
+  tt <- tktoplevel(); tkwm.title(tt, "Analysis Settings"); tkconfigure(tt, bg = "#F7F9FC", padx = 10, pady = 20)
+  includeChange_var <- tclVar(0); includeSex_var <- tclVar(0); includePhase_var <- tclVar(0)
+  frame <- tkframe(tt, bg = "#F7F9FC"); tkgrid(frame, padx = 10, pady = 10)
+  tkgrid(tklabel(frame, text = "Set Inclusion", bg = "#F7F9FC", font = c("Helvetica", 14)))
+  tkgrid(tklabel(frame, text = "Parameters",   bg = "#F7F9FC", font = c("Helvetica", 14)))
+  tkgrid(tklabel(frame, text="Change", bg="#F7F9FC", font=c("Helvetica",12)),
+         tkcheckbutton(frame, variable = includeChange_var, bg="#F7F9FC"), padx=5, pady=5)
+  tkgrid(tklabel(frame, text="Sex", bg="#F7F9FC", font=c("Helvetica",12)),
+         tkcheckbutton(frame, variable = includeSex_var, bg="#F7F9FC"), padx=5, pady=5)
+  tkgrid(tklabel(frame, text="Phase", bg="#F7F9FC", font=c("Helvetica",12)),
+         tkcheckbutton(frame, variable = includePhase_var, bg="#F7F9FC"), padx=5, pady=5)
+  onOK <- function() tkdestroy(tt)
+  ok_button <- tkbutton(tt, text="OK", command=onOK, bg="#007AFF", fg="white", relief="flat", font=c("Helvetica",12))
+  tkgrid(ok_button, padx=10, pady=10); tkwait.window(tt)
+  list(
+    includeChange = as.logical(as.numeric(tclvalue(includeChange_var))),
+    includeSex    = as.logical(as.numeric(tclvalue(includeSex_var))),
+    includePhase  = as.logical(as.numeric(tclvalue(includePhase_var)))
+  )
+}
