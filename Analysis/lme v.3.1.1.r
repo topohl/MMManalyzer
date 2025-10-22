@@ -32,6 +32,9 @@ results_dir <- "S:/Lab_Member/Tobi/Experiments/Exp9_Social-Stress/Analysis/Behav
 if (!dir.exists(results_dir)) dir.create(results_dir, recursive = TRUE)
 dir_create_safe <- function(path) { if (!dir.exists(path)) dir.create(path, recursive = TRUE, showWarnings = FALSE) }
 
+# load functions
+source("C:/Users/topohl/Documents/GitHub/MMManalyzer/Analysis/MMM_functions.R")
+
 dirs <- list(
   logs        = file.path(results_dir, "logs"),
   models      = file.path(results_dir, "models"),
