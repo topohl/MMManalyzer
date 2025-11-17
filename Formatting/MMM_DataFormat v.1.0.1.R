@@ -32,6 +32,23 @@ susAnimals <- read.csv("S:/Lab_Member/Tobi/Experiments/Exp9_Social-Stress/Analys
   header = FALSE, stringsAsFactors = FALSE
 )
 
+# Create organized output directory structure
+output_base <- "S:/Lab_Member/Tobi/Experiments/Exp9_Social-Stress/Raw Data/Behavior/RFID/BatchAnalysis/"
+output_dirs <- c(
+  file.path(output_base, "processed_data"),
+  file.path(output_base, "processed_data/aggregated"),
+  file.path(output_base, "processed_data/filtered"),
+  file.path(output_base, "processed_data/raw")
+)
+
+# Create directories if they don't exist
+for (dir in output_dirs) {
+  if (!dir.exists(dir)) {
+    dir.create(dir, recursive = TRUE)
+    print(paste("Created directory:", dir))
+  }
+}
+
 # IMPORTANT: your pasted sex_list.csv shows comma separation, not tabs
 sexAnimals <- read.csv("S:/Lab_Member/Tobi/Experiments/Exp9_Social-Stress/Raw Data/Behavior/RFID/BatchAnalysis/sex_list.csv",
   header = TRUE, stringsAsFactors = FALSE, sep = ","
@@ -128,7 +145,7 @@ data <- data %>%
       "Active", "Inactive"
     ),
     PriorActive = ifelse(
-      format(DateTime, "%H:%M") >= "16:30" & format(DateTime, "%H:%M") <= "18:30",
+      format(DateTime, "%H:%M") >= "16:30" & format(DateTime, "%H:%M") < "18:30",
       "TRUE", "FALSE"
     ),
     Batch = as.factor(Batch)
@@ -219,11 +236,21 @@ data_filtered$DateTime30MinShifted <- format(
   format = "%Y-%m-%d %H:%M:%S"
 )
 
+
 # ===== Aggregate per half-hour interval =====
 print("Aggregate data by AnimalNum, Batch, Change, Phase, and 30-minute interval...")
 data_filtered_agg <- data_filtered %>%
-  dplyr::group_by(AnimalNum, Sex, Batch, Group, Change, Phase, ConsecActive, ConsecInactive, ConsecPhases, PriorActive, DateTime30Min, DateTime30MinShifted) %>%
+  dplyr::group_by(AnimalNum, Sex, Batch, Group, Change, Phase, DateTime30Min, DateTime30MinShifted) %>%
   dplyr::summarize(ActivityIndex = mean(ActivityIndex), .groups = "drop")
+
+# ===== Correct DateTime Conversion and Ordering =====
+if (is.factor(data_filtered_agg$DateTime30Min)) {
+  data_filtered_agg$DateTime30Min <- as.character(data_filtered_agg$DateTime30Min)
+}
+data_filtered_agg$DateTime30Min <- as.POSIXct(data_filtered_agg$DateTime30Min)
+
+data_filtered_agg <- data_filtered_agg %>%
+  dplyr::arrange(AnimalNum, Batch, DateTime30Min)
 
 # ===== Interval label =====
 print("Forming time interval...")
@@ -241,6 +268,18 @@ data_filtered_agg <- data_filtered_agg %>%
   dplyr::mutate(HalfHourElapsed = as.numeric(difftime(DateTime30Min, dplyr::first(DateTime30Min), units = "secs"))/1800) %>%
   dplyr::ungroup()
 
+# ====== Save data files to organized folders =====
+write.csv(data_filtered_agg,
+          file.path(output_base, "processed_data/aggregated/data_filtered_agg.csv"),
+          row.names = FALSE)
+write.csv(data_filtered,
+          file.path(output_base, "processed_data/filtered/data_filtered.csv"),
+          row.names = FALSE)
+write.csv(data,
+          file.path(output_base, "processed_data/raw/data.csv"),
+          row.names = FALSE)
+
+print("Data files saved successfully!")
 print("Done!")
 
 # ===== Optional diagnostics =====
