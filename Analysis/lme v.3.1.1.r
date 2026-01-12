@@ -4,10 +4,10 @@
 
 suppressPackageStartupMessages({
   packages <- c(
-    "ggplot2","dplyr","tidyr","gridExtra","lme4",
-    "lmerTest","cowplot","lsmeans","emmeans","Matrix",
-    "tcltk","openxlsx","readr","stringr","patchwork","scales",
-    "broom.mixed","pbkrtest","rlang","tibble"
+    "ggplot2", "dplyr", "tidyr", "gridExtra", "lme4",
+    "lmerTest", "cowplot", "lsmeans", "emmeans", "Matrix",
+    "tcltk", "openxlsx", "readr", "stringr", "patchwork", "scales",
+    "broom.mixed", "pbkrtest", "rlang", "tibble"
   )
   for (package in packages) {
     if (!requireNamespace(package, quietly = TRUE)) install.packages(package, dependencies = TRUE)
@@ -173,15 +173,15 @@ get_user_input <- function() {
   frame <- tkframe(tt, bg = "#F7F9FC"); tkgrid(frame, padx = 10, pady = 10)
   tkgrid(tklabel(frame, text = "Set Inclusion", bg = "#F7F9FC", font = c("Helvetica", 14)))
   tkgrid(tklabel(frame, text = "Parameters",   bg = "#F7F9FC", font = c("Helvetica", 14)))
-  tkgrid(tklabel(frame, text="Change", bg="#F7F9FC", font=c("Helvetica",12)),
+  tkgrid(tklabel(frame, text = "Change", bg = "#F7F9FC", font = c("Helvetica", 12)),
          tkcheckbutton(frame, variable = includeChange_var, bg="#F7F9FC"), padx=5, pady=5)
-  tkgrid(tklabel(frame, text="Sex", bg="#F7F9FC", font=c("Helvetica",12)),
+  tkgrid(tklabel(frame, text = "Sex", bg = "#F7F9FC", font = c("Helvetica", 12)),
          tkcheckbutton(frame, variable = includeSex_var, bg="#F7F9FC"), padx=5, pady=5)
-  tkgrid(tklabel(frame, text="Phase", bg="#F7F9FC", font=c("Helvetica",12)),
-         tkcheckbutton(frame, variable = includePhase_var, bg="#F7F9FC"), padx=5, pady=5)
+  tkgrid(tklabel(frame, text = "Phase", bg = "#F7F9FC", font = c("Helvetica", 12)),
+         tkcheckbutton(frame, variable = includePhase_var, bg = "#F7F9FC"), padx = 5, pady = 5)
   onOK <- function() tkdestroy(tt)
-  ok_button <- tkbutton(tt, text="OK", command=onOK, bg="#007AFF", fg="white", relief="flat", font=c("Helvetica",12))
-  tkgrid(ok_button, padx=10, pady=10); tkwait.window(tt)
+  ok_button <- tkbutton(tt, text = "OK", command = onOK,bg = "#007AFF", fg = "white", relief = "flat", font = c("Helvetica", 12))
+  tkgrid(ok_button, padx = 10, pady = 10); tkwait.window(tt)
   list(
     includeChange = as.logical(as.numeric(tclvalue(includeChange_var))),
     includeSex    = as.logical(as.numeric(tclvalue(includeSex_var))),
@@ -196,13 +196,13 @@ includePhase  <- ui$includePhase
 # -------------------------------------------------
 # Data prep
 # -------------------------------------------------
-stopifnot(all(c("Change","Sex","Phase","Group","HalfHourElapsed","ActivityIndex","AnimalNum") %in% names(data_filtered_agg)))
+stopifnot(all(c("Change", "Sex", "Phase", "Group", "HalfHourElapsed", "ActivityIndex", "AnimalNum") %in% names(data_filtered_agg)))
 data_filtered_agg <- data_filtered_agg %>%
   mutate(
     Change = factor(Change),
     Sex    = factor(Sex),
-    Phase  = factor(Phase, levels = c("Active","Inactive")),
-    Group  = factor(Group, levels = c("CON","RES","SUS")),
+    Phase  = factor(Phase, levels = c("Active", "Inactive")),
+    Group  = factor(Group, levels = c("CON", "RES", "SUS")),
     HalfHourElapsed = as.integer(HalfHourElapsed)
   )
 
@@ -436,10 +436,9 @@ if (nrow(phase_avg_means_tbl) == 0 && nrow(phase_avg_contr_tbl) == 0) {
         aes(label = ifelse(p.adjust < 0.001, "***",
           ifelse(p.adjust < 0.01, "**",
             ifelse(p.adjust < 0.05, "*", "")
-            )
           )
         )
-      ,
+        ),
         position = position_dodge(width = 0.55),
         vjust = -1.0,
         size = 3.6,
@@ -477,82 +476,87 @@ phase_avg_contr_tbl <- phase_avg_contr_tbl %>%
 
 # ----------- Plot functions -----------
 plot_volcano_phaseavg <- function(df, n_labels = 10, pval_thresh = 0.05, effect_thresh = 1) {
-    df <- df %>%
-        mutate(
-            sig = p.adjust < pval_thresh,
-            large_effect = abs(estimate) > effect_thresh,
-            label_flag = sig & large_effect,
-            contrast = factor(contrast, levels = c("RES - CON",
-                                                                                         "SUS - CON",
-                                                                                         "RES - SUS")),
-            Phase = factor(Phase, levels = c("Active", "Inactive")),
-            Sex = factor(Sex)
-        )
+  df <- df %>%
+    mutate(
+      sig = p.adjust < pval_thresh,
+      large_effect = abs(estimate) > effect_thresh,
+      label_flag = sig & large_effect,
+      contrast = factor(contrast, levels = c("RES - CON",
+                                             "SUS - CON",
+                                             "RES - SUS")),
+      Phase = factor(Phase, levels = c("Active", "Inactive")),
+      Sex = factor(Sex)
+    )
+  # Optional: top labels per Sex (phases are overlaid)
+  label_points <- df %>%
+    filter(label_flag) %>%
+    group_by(Sex) %>%
+    arrange(p.adjust, desc(abs(estimate))) %>%
+    slice_head(n = n_labels) %>%
+    ungroup()
 
-    # Optional: top labels per Sex (phases are overlaid)
-    label_points <- df %>%
-        filter(label_flag) %>%
-        group_by(Sex) %>%
-        arrange(p.adjust, desc(abs(estimate))) %>%
-        slice_head(n = n_labels) %>%
-        ungroup()
-
-    ggplot(
-        df,
-        aes(
-            x = estimate,
-            y = -log10(p.adjust),
-            color = contrast,
-            shape = Phase
-        )
+  ggplot(
+    df,
+    aes(
+      x = estimate,
+      y = -log10(p.adjust),
+      color = contrast,
+      shape = Phase
+    )
+  ) +
+    geom_vline(
+      xintercept = c(-effect_thresh, effect_thresh),
+      linetype = "dotted",
+      color = "gray50"
     ) +
-        geom_vline(
-            xintercept = c(-effect_thresh, effect_thresh),
-            linetype = "dotted",
-            color = "gray50"
-        ) +
-        geom_hline(
-            yintercept = -log10(0.05),
-            linetype = "dashed",
-            color = "gray70"
-        ) +
-        geom_point(size = 5, alpha = 0.8) +
-        # geom_text_repel(
-        #   data = label_points,
-        #   aes(label = contrast),
-        #   size = 3,
-        #   max.overlaps = 15,
-        #   nudge_y = 0.5
-        # ) +
-        scale_color_manual(values = c(
-            "RES - CON" = "#457B9D",
-            "SUS - CON" = "#E63946",
-            "RES - SUS" = "#C6C3BB"
-        )) +
-        scale_shape_manual(values = c("Active" = 16, "Inactive" = 1), name = "Phase") +
-        facet_grid(. ~ Sex) +
-        theme_minimal(base_size = 14) +
-        theme(
-            panel.grid.major.x = element_line(linewidth = 0.2),
-            panel.grid.major.y = element_line(linewidth = 0.2),
-            legend.position = "top"
-        ) +
-        scale_x_continuous(breaks = seq(-20, 30, by = 10), minor_breaks = NULL) +
-        labs(
-            x = "Effect size (estimate)",
-            y = expression(-log[10](adjusted~p~value)),
-            color = "Contrast",
-            title = "Volcano Plot by Sex (phases overlaid with shape)"
-        )
+    geom_hline(
+      yintercept = -log10(0.05),
+      linetype = "dashed",
+      color = "gray70"
+    ) +
+    geom_point(size = 5, alpha = 0.8
+    ) +
+    # geom_text_repel(
+    #   data = label_points,
+    #   aes(label = contrast),
+    #   size = 3,
+    #   max.overlaps = 15,
+    #   nudge_y = 0.5
+    # ) +
+    scale_color_manual(values = c(
+      "RES - CON" = "#457B9D",
+      "SUS - CON" = "#E63946",
+      "RES - SUS" = "#C6C3BB"
+    )) +
+scale_shape_manual(values = c("Active" = 16, "Inactive" = 1), name = "Phase") +
+    facet_grid(. ~ Sex) +
+    theme_minimal(base_size = 14) +
+    theme(
+      panel.grid.major.x = element_line(linewidth = 0.2),
+      panel.grid.major.y = element_line(linewidth = 0.2),
+      legend.position = "top"
+    ) +
+scale_x_continuous(breaks = seq(-20, 30, by = 10), minor_breaks = NULL) +
+    labs(
+      x = "Effect size (estimate)",
+      y = expression(-log[10](adjusted ~ p ~ value)),
+      color = "Contrast",
+      title = "Volcano Plot by Sex (phases overlaid with shape)"
+   )
 }
 
 plot_forest_phaseavg <- function(df, contrast_levels = levels(df$contrast)) {
   sub <- df %>% filter(contrast %in% contrast_levels)
-  ggplot(sub, aes(y = reorder(contrast, estimate), x = estimate, xmin = lwr, xmax = upr, color = contrast)) +
-    geom_point(size = 3) +
-    geom_errorbarh(height = 0.2) +
-    facet_grid(Phase ~ Change) +
-    theme_minimal(base_size = 14) +
+  ggplot(sub, aes(y = reorder(contrast, estimate),
+                  x = estimate,
+                  xmin = lwr,
+                  xmax = upr,
+                  color = contrast)
+                  ) +
+geom_point(size = 3) +
+geom_errorbarh(height = 0.2) +
+facet_grid(Phase ~ Change) +
+theme_minimal(base_size = 14) +
     labs(x = "Estimate (phase avg, with 95% CI)", y = "Contrast", title = "Forest Plot (Phase Average)")
 }
 
@@ -560,7 +564,7 @@ plot_forest_phaseavg <- function(df, contrast_levels = levels(df$contrast)) {
 # Convert Group, Phase, Change, Sex to factor as needed (similar approach)
 phase_avg_means_tbl <- phase_avg_means_tbl %>%
   mutate(
-    Group = factor(Group, levels = c("CON","RES","SUS")),
+    Group = factor(Group, levels = c("CON", "RES", "SUS")),
     Phase = factor(Phase, levels = c("Active", "Inactive")),
     Change = factor(Change),
     Sex = factor(Sex)
@@ -684,43 +688,89 @@ if (nrow(emm_df) > 0 && length(unique(emm_df$Sex)) > 0) {
 }
 
 # Panel B (ribbons) and C (heatmap)
-cc_starts <- data_filtered_agg %>% dplyr::group_by(Change) %>% dplyr::summarise(t0 = min(HalfHourElapsed, na.rm = TRUE), .groups = "drop")
-df_plot_B <- data_filtered_agg %>% dplyr::filter((!includeChange | Change %in% unique(Change)), (!includeSex | Sex %in% unique(Sex)), (!includePhase | Phase %in% unique(Phase)))
-tc_df <- df_plot_B %>% dplyr::left_join(cc_starts, by = "Change") %>% dplyr::mutate(rel_time_h = (HalfHourElapsed - t0) / 2) %>%
-  dplyr::group_by(Change, Sex, Group, rel_time_h) %>% dplyr::summarise(mean_act = mean(ActivityIndex, na.rm = TRUE), sd_act = sd(ActivityIndex, na.rm = TRUE), .groups = "drop") %>%
-  dplyr::mutate(Group = factor(Group, levels = c("CON","RES","SUS")), Sex = droplevels(factor(Sex)), Change = droplevels(factor(Change)))
+cc_starts <- data_filtered_agg %>%
+  dplyr::group_by(Change) %>%
+  dplyr::summarise(t0 = min(HalfHourElapsed, na.rm = TRUE), .groups = "drop")
+df_plot_B <- data_filtered_agg %>%
+  dplyr::filter((!includeChange | Change %in% unique(Change)),
+                (!includeSex | Sex %in% unique(Sex)),
+                (!includePhase | Phase %in% unique(Phase)))
+tc_df <- df_plot_B %>%
+  dplyr::left_join(cc_starts, by = "Change") %>%
+  dplyr::mutate(rel_time_h = (HalfHourElapsed - t0) / 2) %>%
+  dplyr::group_by(Change, Sex, Group, rel_time_h) %>%
+  dplyr::summarise(mean_act = mean(ActivityIndex, na.rm = TRUE),
+                   sd_act = sd(ActivityIndex, na.rm = TRUE),
+                   .groups = "drop") %>%
+  dplyr::mutate(Group = factor(Group, levels = c("CON", "RES", "SUS")),
+                Sex = droplevels(factor(Sex)),
+                Change = droplevels(factor(Change)))
 file_panelB <- file.path(dir_pub, paste0("panelB_ribbons_rel_phaseCollapsed_", run_scope, ".svg"))
 if (nrow(tc_df) > 0) {
   max_rel <- max(tc_df$rel_time_h, na.rm = TRUE)
   ribbons_plot <- ggplot(tc_df, aes(x = rel_time_h, y = mean_act, color = Group, fill = Group)) +
     geom_ribbon(aes(ymin = mean_act - sd_act, ymax = mean_act + sd_act), alpha = 0.22, colour = NA) +
     geom_line(size = 0.8) +
-    scale_color_manual(values = c("CON"="#C6C3BB", "RES"="#457B9D", "SUS"="#E63946")) +
-    scale_fill_manual(values = c("CON"="#C6C3BB", "RES"="#457B9D", "SUS"="#E63946")) +
-    scale_x_continuous(breaks = scales::breaks_pretty(), limits = c(0, max_rel)) +
-    labs(title = "Activity over CC-relative time (mean ± SD)", x = "Time since CC start [h]", y = "Activity [a.u.]") +
+    scale_color_manual(values = c("CON" = "#457B9D",
+                                  "RES" = "#C6C3BB",
+                                  "SUS" = "#E63946")) +
+    scale_fill_manual(values = c("CON" = "#457B9D",
+                                 "RES" = "#C6C3BB",
+                                 "SUS" = "#E63946")) +
+    scale_x_continuous(breaks = scales::breaks_pretty(),
+                       limits = c(0, max_rel)) +
+    labs(title = "Activity over CC-relative time (mean ± SD)",
+         x = "Time since CC start [h]",
+         y = "Activity [a.u.]") +
     facet_grid(Sex ~ Change, scales = "free_y") +
     theme_pub_small
   ggsave(file_panelB, ribbons_plot, width = 10.5, height = 4.6)
 }
 
-df_plot_C <- data_filtered_agg %>% dplyr::filter(Group %in% c("CON","SUS"), (!includeChange | Change %in% unique(Change)), (!includeSex | Sex %in% unique(Sex)), (!includePhase | Phase %in% unique(Phase)))
-phase_starts <- df_plot_C %>% dplyr::group_by(Change, Sex, Phase) %>% dplyr::summarise(t0_phase = min(HalfHourElapsed, na.rm = TRUE), .groups = "drop")
-diff_df <- df_plot_C %>% dplyr::left_join(phase_starts, by = c("Change","Sex","Phase")) %>% dplyr::mutate(rel_phase_h = (HalfHourElapsed - t0_phase) / 2) %>%
-  dplyr::group_by(Change, Sex, Phase, Group, rel_phase_h) %>% dplyr::summarise(mean_act = mean(ActivityIndex, na.rm = TRUE), .groups = "drop") %>%
-  tidyr::pivot_wider(names_from = Group, values_from = mean_act) %>% dplyr::mutate(diff_SC = SUS - CON, Sex = droplevels(factor(Sex)), Change = droplevels(factor(Change)), Phase = factor(Phase, levels = c("Active","Inactive"))) %>%
+df_plot_C <- data_filtered_agg %>%
+  dplyr::filter(Group %in% c("CON", "SUS"),
+               (!includeChange | Change %in% unique(Change)),
+               (!includeSex | Sex %in% unique(Sex)),
+               (!includePhase | Phase %in% unique(Phase)))
+phase_starts <- df_plot_C %>%
+  dplyr::group_by(Change, Sex, Phase) %>%
+  dplyr::summarise(t0_phase = min(HalfHourElapsed, na.rm = TRUE),
+                   groups = "drop")
+diff_df <- df_plot_C %>%
+  dplyr::left_join(phase_starts, by = c("Change", "Sex", "Phase")) %>%
+  dplyr::mutate(rel_phase_h = (HalfHourElapsed - t0_phase) / 2) %>%
+  dplyr::group_by(Change, Sex, Phase, Group, rel_phase_h) %>%
+  dplyr::summarise(mean_act = mean(ActivityIndex, na.rm = TRUE),
+  .groups = "drop") %>%
+  tidyr::pivot_wider(names_from = Group, values_from = mean_act) %>%
+  dplyr::mutate(diff_SC = SUS - CON, Sex = droplevels(factor(Sex)),
+                Change = droplevels(factor(Change)),
+                Phase = factor(Phase,
+                levels = c("Active", "Inactive"))) %>%
   dplyr::filter(!is.na(diff_SC))
 file_panelC <- file.path(dir_pub, paste0("panelC_heat_phaseAligned_", run_scope, ".svg"))
 if (nrow(diff_df) > 0) {
   thresh <- stats::quantile(abs(diff_df$diff_SC), probs = 0.95, na.rm = TRUE)
-  diff_df <- diff_df %>% dplyr::mutate(sig_bin = abs(diff_SC) >= as.numeric(thresh))
-  heat_plot <- ggplot(diff_df, aes(x = rel_phase_h, y = factor(Change, levels = sort(unique(as.character(Change)))), fill = diff_SC)) +
+  diff_df <- diff_df %>%
+    dplyr::mutate(sig_bin = abs(diff_SC) >= as.numeric(thresh))
+  heat_plot <- ggplot(diff_df, aes(x = rel_phase_h,
+                                   y = factor(Change,
+                                              levels = sort(unique(as.character(Change)))),
+                                   fill = diff_SC)) +
     geom_tile() +
-    scale_fill_gradient2(low = "#2c7bb6", mid = "white", high = "#d7191c", midpoint = 0) +
+    scale_fill_gradient2(low = "#2c7bb6",
+                         mid = "white",
+                         high = "#d7191c",
+                         midpoint = 0) +
     geom_point(data = subset(diff_df, sig_bin),
-               aes(x = rel_phase_h, y = factor(Change, levels = sort(unique(as.character(Change))))),
+               aes(x = rel_phase_h, 
+                   y = factor(Change,
+                              levels = sort(unique(as.character(Change))))),
                shape = 4, size = 0.8, color = "black", inherit.aes = FALSE) +
-    labs(title = "SUS−CON difference (Phase-aligned)", x = "Time since phase start [h]", y = "Cage change", fill = "Δ Activity") +
+    labs(title = "SUS−CON difference (Phase-aligned)",
+         x = "Time since phase start [h]",
+         y = "Cage change",
+         fill = "Δ Activity") +
     facet_grid(Phase ~ Sex, scales = "free_y") +
     theme_pub_small
   ggsave(file_panelC, heat_plot, width = 10.5, height = 4.8)
@@ -748,14 +798,19 @@ for (obj in c("df_emm_start","df_emm_end","df_emm_all",
 }
 
 # ==== REQUIRED: Build edge_animal_means_collapsed (unconditional) ====
+# The original code expected ConsecActive/ConsecInactive; compute contiguous segment ids
+# per AnimalNum / Change / Sex / Phase based on gaps in HalfHourElapsed.
 edges_all_segments <- data_filtered_agg %>%
+  dplyr::arrange(AnimalNum, Change, Sex, Phase, HalfHourElapsed) %>%
+  dplyr::group_by(AnimalNum, Change, Sex, Phase) %>%
   dplyr::mutate(
-    seg_id = dplyr::case_when(
-      Phase == "Active"   ~ as.integer(ConsecActive),
-      Phase == "Inactive" ~ as.integer(ConsecInactive),
-      TRUE ~ NA_integer_
-    )
-  ) %>% dplyr::filter(!is.na(seg_id), seg_id >= 1L)
+    gap = HalfHourElapsed - dplyr::lag(HalfHourElapsed),
+    new_seg = ifelse(is.na(gap) | gap > 1L, 1L, 0L),
+    seg_id = cumsum(new_seg)
+  ) %>%
+  dplyr::ungroup() %>%
+  dplyr::filter(!is.na(seg_id), seg_id >= 1L) %>%
+  dplyr::select(-gap, -new_seg)
 
 seg_bounds <- edges_all_segments %>%
   dplyr::group_by(Change, Sex, Phase, AnimalNum, seg_id) %>%
@@ -1364,4 +1419,170 @@ if (file.exists(manifest_file)) {
   openxlsx::write.xlsx(dplyr::bind_rows(old, manifest_row), file = manifest_file, rowNames = FALSE)
 } else {
   openxlsx::write.xlsx(manifest_row, file = manifest_file, rowNames = FALSE)
+}
+
+# -------------------------------------------------
+# Sex Difference Computations (Phase Average Contrasts & Within-Group)
+# -------------------------------------------------
+
+# (1) Sex Differences in Phase-Averaged Contrasts (e.g. [RES-CON in Females] - [RES-CON in Males])
+if (exists("phase_avg_contr_tbl") && nrow(phase_avg_contr_tbl) > 0) {
+  sexes_avail <- unique(as.character(phase_avg_contr_tbl$Sex))
+  
+  if (length(sexes_avail) == 2) {
+    s1 <- sort(sexes_avail)[1]
+    s2 <- sort(sexes_avail)[2]
+    
+    # Pivot wider by Sex to get pairs
+    # Ensure contrast format is consistent before pivoting using 'pair' if available
+    # phase_avg_contr_tbl likely has columns: contrast, estimate, SE, df, Change, Sex, Phase, pair...
+    
+    # We use 'pair' column for matching if available, otherwise 'contrast'
+    join_cols <- c("Change", "Phase", "contrast")
+    if ("pair" %in% names(phase_avg_contr_tbl)) join_cols <- c("Change", "Phase", "pair")
+    
+    df_sex_diff <- phase_avg_contr_tbl %>%
+      dplyr::select(any_of(c("Change", "Phase", "pair", "contrast", "estimate", "SE", "df", "Sex"))) %>%
+      tidyr::pivot_wider(
+        names_from = Sex, 
+        values_from = c(estimate, SE, df),
+        names_sep = "__"
+      )
+    
+    est1 <- paste0("estimate__", s1); est2 <- paste0("estimate__", s2)
+    se1  <- paste0("SE__", s1);       se2  <- paste0("SE__", s2)
+    df1  <- paste0("df__", s1);       df2  <- paste0("df__", s2)
+    
+    df_sex_diff <- df_sex_diff %>%
+      dplyr::mutate(
+        estimate_diff = .data[[est2]] - .data[[est1]], # s2 - s1
+        SE_diff = sqrt(.data[[se1]]^2 + .data[[se2]]^2),
+        # Welch-Satterthwaite approx
+        df_diff = (.data[[se1]]^2 + .data[[se2]]^2)^2 / 
+                  ((.data[[se1]]^4 / .data[[df1]]) + (.data[[se2]]^4 / .data[[df2]])),
+        # If df is NA (fixed dummy), fallback to large number
+        df_diff = ifelse(is.na(df_diff), 200, df_diff),
+        t_ratio = estimate_diff / SE_diff,
+        p_value = 2 * pt(-abs(t_ratio), df = df_diff),
+        sex_comp = paste0(s2, " - ", s1)
+      ) %>%
+      dplyr::mutate(
+        p_holm = p.adjust(p_value, method = "holm"),
+        lower_CL = estimate_diff - qt(0.975, df_diff) * SE_diff,
+        upper_CL = estimate_diff + qt(0.975, df_diff) * SE_diff,
+        annot = ifelse(p_holm < 0.001, "***", ifelse(p_holm < 0.01, "**", ifelse(p_holm < 0.05, "*", ""))),
+        # Explicit direction for easy reading
+        Direction = dplyr::case_when(
+          estimate_diff > 0 ~ paste(s2, ">", s1),
+          estimate_diff < 0 ~ paste(s1, ">", s2),
+          TRUE ~ "Equal"
+        ),
+        # Convert Change to factor for ordered plotting
+        Change = factor(Change, levels = sort(unique(as.character(Change))))
+      )
+    
+    # Save table
+    openxlsx::write.xlsx(df_sex_diff, file.path(dirs$tables_contr, paste0("phaseAvg_contrasts_sexDiff_", run_scope, ".xlsx")))
+    readr::write_csv(df_sex_diff, file.path(dirs$tables_contr, paste0("phaseAvg_contrasts_sexDiff_", run_scope, ".csv")))
+    
+    # Optional plot: Forest plot of sex differences (Vertical)
+    if (nrow(df_sex_diff) > 0) {
+      if (!"pair" %in% names(df_sex_diff)) df_sex_diff$pair <- df_sex_diff$contrast
+
+      p_sex_diff <- ggplot(df_sex_diff, aes(x = estimate_diff, y = Change, color = pair)) +
+        geom_pointrange(aes(xmin = lower_CL, xmax = upper_CL), position = position_dodge(width = 0.6)) +
+        geom_vline(xintercept = 0, linetype = "dashed") +
+        geom_text(aes(label = annot, group = pair), 
+                  position = position_dodge(width = 0.6), 
+                  vjust = -0.8, size = 3.5, show.legend = FALSE) +
+        facet_grid(Phase ~ ., scales = "free_x") +
+        labs(title = paste0("Sex Difference in Contrasts (", s2, " - ", s1, ")"),
+             subtitle = paste("Positive values:", s2, "higher effect | Negative values:", s1, "higher effect"),
+             x = "Difference Estimate", y = "Cage Change") +
+        scale_color_manual(values = c("RES-CON" = "grey60", "SUS-CON" = "#E63946", "RES-SUS" = "#457B9D")) +
+        theme_minimal(base_size = 14) +
+        theme(panel.grid.minor = element_blank(), legend.position = "top")
+
+      ggsave(file.path(dirs$plots_pub, paste0("forest_phaseAvg_sexDiff_", run_scope, ".svg")), p_sex_diff, width = 8, height = 6)
+    }
+  }
+}
+
+# (2) Within-Group Sex Contrasts (e.g. CON Male vs CON Female)
+# This requires querying the phase_avg_means_tbl which contains Group means per Sex/Phase/Change
+if (exists("phase_avg_means_tbl") && nrow(phase_avg_means_tbl) > 0) {
+  sexes_avail <- unique(as.character(phase_avg_means_tbl$Sex))
+  
+  if (length(sexes_avail) == 2) {
+    s1 <- sort(sexes_avail)[1]
+    s2 <- sort(sexes_avail)[2]
+    
+    # Pivot to align Sexes per Group
+    df_group_sex <- phase_avg_means_tbl %>%
+      dplyr::select(Change, Phase, Group, Sex, emmean_avg, SE_avg) %>% # Assuming df is generic/large if not carried, roughly approx
+      tidyr::pivot_wider(
+        names_from = Sex,
+        values_from = c(emmean_avg, SE_avg),
+        names_sep = "__"
+      )
+    
+    m1 <- paste0("emmean_avg__", s1); m2 <- paste0("emmean_avg__", s2)
+    se1 <- paste0("SE_avg__", s1);    se2 <- paste0("SE_avg__", s2)
+    
+    # For DF, we might need to look up original models, but here we use a standard approximation (e.g. 200 or infinite)
+    # as phase_avg_means_tbl table often loses specific df per point. 
+    # Or rely on the fact that SEs are populated.
+    
+    df_group_sex <- df_group_sex %>%
+      dplyr::mutate(
+        estimate_diff = .data[[m2]] - .data[[m1]],
+        SE_diff = sqrt(.data[[se1]]^2 + .data[[se2]]^2),
+        df_approx = 200, # Fallback
+        t_ratio = estimate_diff / SE_diff,
+        p_value = 2 * pt(-abs(t_ratio), df = df_approx),
+        p_holm = p.adjust(p_value, method = "holm"),
+        lower_CL = estimate_diff - qt(0.975, df_approx) * SE_diff,
+        upper_CL = estimate_diff + qt(0.975, df_approx) * SE_diff,
+        contrast = paste0(s2, " - ", s1),
+        annot = ifelse(p_holm < 0.001, "***", ifelse(p_holm < 0.01, "**", ifelse(p_holm < 0.05, "*", ""))),
+        # Explicit direction for easy reading
+        Direction = dplyr::case_when(
+          estimate_diff > 0 ~ paste(s2, ">", s1),
+          estimate_diff < 0 ~ paste(s1, ">", s2),
+          TRUE ~ "Equal"
+        ),
+        Change = factor(Change, levels = sort(unique(as.character(Change)))),
+        # Reverse level order to c("SUS", "RES", "CON") so that 'CON' appears at the top 
+        # (highest Y position) within the dodge group on the plot.
+        Group = factor(Group, levels = c("SUS", "RES", "CON"))
+      )
+    
+    # Save
+    openxlsx::write.xlsx(df_group_sex, file.path(dirs$tables_contr, paste0("phaseAvg_withinGroup_sexDiff_", run_scope, ".xlsx")))
+    readr::write_csv(df_group_sex, file.path(dirs$tables_contr, paste0("phaseAvg_withinGroup_sexDiff_", run_scope, ".csv")))
+    
+    # Plot: Forest plot of Sex Diff within Group (Horizontal orientation requested)
+    if(nrow(df_group_sex) > 0) {
+      
+      # Define palette for groups
+      grp_pal <- c("CON" = "#457B9D", "RES" = "#C6C3BB", "SUS" = "#E63946")
+
+      p_within_grp <- ggplot(df_group_sex, aes(x = estimate_diff, y = Change, color = Group)) +
+      geom_pointrange(aes(xmin = lower_CL, xmax = upper_CL), 
+              position = position_dodge(width = 0.6), 
+              size = 1, linewidth = 1) +
+      geom_vline(xintercept = 0, linetype = "dashed") +
+      geom_text(aes(label = annot, group = Group), 
+            position = position_dodge(width = 0.6), 
+            vjust = -0.8, size = 5, show.legend = FALSE) + 
+      scale_color_manual(values = grp_pal, breaks = c("CON", "RES", "SUS")) +
+      facet_grid(Phase ~ ., scales = "free_x") +
+      labs(title = paste0("Sex Difference Within Group (", s2, " - ", s1, ")"),
+         subtitle = paste("Phases Averaged | Positive:", s2, "higher | Negative:", s1, "higher"),
+         x = "Difference Estimate", y = "Cage Change") +
+      theme_minimal(base_size = 14) +
+      theme(panel.grid = element_blank())
+      ggsave(file.path(dirs$plots_pub, paste0("forest_phaseAvg_withinGroup_sexDiff_", run_scope, ".svg")), p_within_grp, width = 5, height = 5)
+    }
+  }
 }
