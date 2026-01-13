@@ -424,38 +424,45 @@ if (nrow(phase_avg_means_tbl) == 0 && nrow(phase_avg_contr_tbl) == 0) {
 
   phase_avg_contr_tbl <- canonicalize_contrast(phase_avg_contr_tbl, keep_pairs = c("RES-CON","SUS-CON","RES-SUS"))
 
-  # Forest plot (RES-CON, SUS-CON, RES-SUS)
+  # Forest plot
   if (nrow(phase_avg_contr_tbl) > 0) {
     forest_phaseavg <- ggplot(
       phase_avg_contr_tbl,
       aes(x = Change, y = estimate, ymin = lwr, ymax = upr, color = pair, shape = pair)
     ) +
       geom_hline(yintercept = 0, linetype = "dashed", color = "grey50") +
-      geom_pointrange(position = position_dodge(width = 0.55), linewidth = 0.6) +
+      geom_pointrange(position = position_dodge(width = 0.55), size = 1.5, linewidth = 1.2) +
+      scale_x_discrete(labels = function(x) stringr::str_extract(x, "\\d+")) +
       geom_text(
         aes(label = ifelse(p.adjust < 0.001, "***",
-          ifelse(p.adjust < 0.01, "**",
-            ifelse(p.adjust < 0.05, "*", "")
-          )
+                           ifelse(p.adjust < 0.01, "**",
+                                  ifelse(p.adjust < 0.05, "*", "")
+                           )
         )
         ),
         position = position_dodge(width = 0.55),
         vjust = -1.0,
-        size = 3.6,
+        size = 6,
         color = "#333333"
       ) +
-      scale_color_manual(values = c("RES-CON" = "grey60", "SUS-CON" = "#E63946", "RES-SUS" = "#457B9D")) +
+      scale_color_manual(values = c("RES-CON" = "#457B9D", "SUS-CON" = "#E63946", "RES-SUS" = "grey60")) +
       scale_shape_manual(values = c("RES-CON" = 16, "SUS-CON" = 16, "RES-SUS" = 16)) +
-      labs(title = "Phase-averaged contrasts (RES-CON, SUS-CON, RES-SUS)",
+      labs(title = "Phase-averaged contrasts: Activity Index",
            x = "Cage Change", y = "Estimate (difference)") +
       facet_grid(Phase ~ Sex, scales = "free_x") +
-      theme_minimal(base_size = 12) +
-      theme(panel.grid.minor = element_blank(), legend.position = "top",
-            plot.title = element_text(face = "bold", hjust = 0.5)) +
+      theme_minimal(base_size = 20) +
+      theme(
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        legend.position = "top",
+        plot.title = element_text(face = "bold", hjust = 0.5, size = 24),
+        axis.title = element_text(size = 22, face = "bold"),
+        axis.text = element_text(size = 18)
+      ) +
       coord_flip()
 
     ggsave(file.path(dirs$plots_pub, paste0("panelA_forest_phaseAvg_with_RES-SUS_", run_scope, ".svg")),
-           forest_phaseavg, width = 5, height = 9)
+           forest_phaseavg, width = 6, height = 9)
   }
 }
 
