@@ -96,42 +96,152 @@ incldeFactorExist <-  function(factor, data, include_factor){
 
 
 
-# Function to generate plots for each variable and phase
+# 1. Define the Nature Theme
+theme_nature <- function() {
+  theme_classic(base_size = 8) +
+    theme(
+      text = element_text(color = "black"),
+      axis.line = element_line(linewidth = 0.3, color = "black"),
+      axis.ticks = element_line(linewidth = 0.3, color = "black"),
+      axis.text = element_text(size = 7, color = "black"),
+      axis.title = element_text(size = 8, face = "bold"),
+      plot.title = element_text(size = 9, hjust = 0.5, face = "bold"),
+      plot.subtitle = element_text(size = 7, hjust = 0.5),
+      legend.position = "none",
+      strip.background = element_blank(),
+      strip.text = element_text(face = "bold")
+    )
+}
+
+# Helper: choose test strategy from normality and return pairwise stats
+compute_pairwise_stats <- function(data, variableName) {
+  data <- data %>% filter(!is.na(Group), !is.na(.data[[variableName]]))
+  groups <- unique(as.character(data$Group))
+  if (length(groups) < 2) return(NULL)
+
+  split_data <- split(data[[variableName]], data$Group)
+  normal_flags <- vapply(split_data, function(x) {
+    x <- x[!is.na(x)]
+    length(x) >= 3 && shapiro.test(x)$p.value >= 0.05
+  }, logical(1))
+  all_normal <- all(normal_flags)
+
+  if (length(groups) == 2) {
+    g1 <- groups[1]; g2 <- groups[2]
+    x1 <- data[[variableName]][data$Group == g1]
+    x2 <- data[[variableName]][data$Group == g2]
+
+    pval <- if (all_normal) t.test(x1, x2)$p.value else wilcox.test(x1, x2)$p.value
+
+    stats <- data.frame(
+      group1 = g1,
+      group2 = g2,
+      p = pval,
+      p.adj = pval,
+      stringsAsFactors = FALSE
+    )
+  } else {
+    if (all_normal) {
+      stats <- pairwise_t_test(
+        data,
+        formula = as.formula(paste(variableName, "~ Group")),
+        p.adjust.method = "bonferroni"
+      )
+    } else {
+      stats <- dunn_test(
+        data,
+        formula = as.formula(paste(variableName, "~ Group")),
+        p.adjust.method = "holm"
+      )
+    }
+  }
+
+  if (!"p.adj" %in% names(stats)) stats$p.adj <- stats$p
+
+  stats$label <- ifelse(
+    stats$p.adj < 0.001, "***",
+    ifelse(stats$p.adj < 0.01, "**", ifelse(stats$p.adj < 0.05, "*", "ns"))
+  )
+  stats$method <- if (all_normal) "parametric" else "non-parametric"
+  stats
+}
+
+# Nature-style plotting with statistical annotations
 generatePlot <- function(overallData, variableName, phase, sex) {
   filteredData <- overallData %>%
-    filter(if (include_phase) Phase == phase else TRUE) %>%  # Include/exclude "Phase" based on the variable
-    filter(if (include_sex) Sex == sex else TRUE)  # Include/exclude "Sex" based on the variable
-  
-  
+    filter(if (exists("include_phase") && include_phase) Phase == phase else TRUE) %>%
+    filter(if (exists("include_sex") && include_sex) Sex == sex else TRUE)
+
+  subtitle_parts <- c()
+  if (exists("include_phase") && include_phase) subtitle_parts <- c(subtitle_parts, phase)
+  if (exists("include_sex") && include_sex) subtitle_parts <- c(subtitle_parts, sex)
+  subtitle_text <- if (length(subtitle_parts) > 0) paste(subtitle_parts, collapse = " | ") else NULL
+
   p <- ggplot(filteredData, aes(Group, .data[[variableName]], color = Group)) +
-    # Customize plot aesthetics and labels
-    scale_x_discrete(name = NULL, expand = c(0.3, 0.1)) + 
-    scale_y_continuous(expand = c(0.1, 0.1)) +
-    geom_jitter(aes(fill = Group), size = 4, alpha = 0.7, width = 0.2, shape = 16, na.rm = TRUE) +
+    geom_jitter(width = 0.2, size = 2, alpha = 0.6, stroke = 0, na.rm = TRUE) +
     stat_summary(
-      fun.min = function(z) {quantile(z, 0.25)},
-      fun.max = function(z) {quantile(z, 0.75)},
-      fun = median,
+      fun.min = function(z) quantile(z, 0.25, na.rm = TRUE),
+      fun.max = function(z) quantile(z, 0.75, na.rm = TRUE),
+      geom = "errorbar",
+      width = 0.2,
+      linewidth = 0.4,
       color = "black",
-      size = 0.8,
-      shape = 16,
       na.rm = TRUE
     ) +
-    labs(title = bquote(~bold(.(variableName))),
-         subtitle = paste("(", phase, " ", sex, ")", sep = ""),
-         caption = "",
-         x = NULL,
-         y = "z score [a.u.]") +
-    scale_color_manual(name = NULL, values = groupColors) +
-    scale_fill_manual(name = NULL, values = groupColors) +
-    theme_minimal_hgrid(12, rel_small = 1) +
-    theme(plot.title = element_text(hjust = 0.5, face = "plain"),
-          plot.subtitle = element_text(hjust = 0.5, size = 10, face = "plain"),
-          legend.position = "none",
-          axis.title.x = element_blank(),
-          axis.text.x = element_text(),
-          axis.ticks.x = element_blank())
-  
+    stat_summary(
+      fun = median,
+      geom = "crossbar",
+      width = 0.4,
+      linewidth = 0.4,
+      color = "black",
+      na.rm = TRUE
+    ) +
+    labs(
+      title = variableName,
+      subtitle = subtitle_text,
+      x = NULL,
+      y = "z score [a.u.]"
+    ) +
+    scale_color_manual(values = groupColors) +
+    scale_y_continuous(expand = expansion(mult = c(0.05, 0.2))) +
+    theme_nature()
+
+  # Add significance brackets
+  stat_df <- compute_pairwise_stats(filteredData, variableName)
+  if (!is.null(stat_df) && nrow(stat_df) > 0) {
+    stat_df <- stat_df %>%
+      dplyr::ungroup() %>%
+      as.data.frame() %>%
+      dplyr::filter(!is.na(group1), !is.na(group2), !is.na(p.adj))
+
+    if (nrow(stat_df) > 0) {
+      y_max <- max(filteredData[[variableName]], na.rm = TRUE)
+      y_min <- min(filteredData[[variableName]], na.rm = TRUE)
+      y_span <- ifelse(is.finite(y_max - y_min) && (y_max - y_min) > 0, y_max - y_min, 1)
+
+      stat_df$y.position <- y_max + (seq_len(nrow(stat_df)) * 0.1 * y_span)
+
+      p <- tryCatch({
+        p +
+          ggpubr::stat_pvalue_manual(
+            stat_df,
+            label = "label",
+            xmin = "group1",
+            xmax = "group2",
+            y.position = "y.position",
+            hide.ns = TRUE,
+            tip.length = 0.01,
+            bracket.size = 0.3,
+            size = 2.5,
+            step.increase = as.numeric(0)
+          ) +
+          labs(caption = paste0("Stats: ", unique(stat_df$method)))
+      }, error = function(e) {
+        p + labs(caption = paste0("Stats: ", unique(stat_df$method), " (annotation skipped)"))
+      })
+    }
+  }
+
   return(p)
 }
 
